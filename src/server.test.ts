@@ -23,6 +23,7 @@ jest.mock('./api/client');
 
 describe('MCP Server Integration', () => {
   let importRecipeMock: jest.Mock;
+  let listAllFoodsMock: jest.Mock;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let serverModule: any;
 
@@ -31,6 +32,15 @@ describe('MCP Server Integration', () => {
     jest.clearAllMocks();
 
     importRecipeMock = jest.fn();
+    listAllFoodsMock = jest.fn();
+
+    // Mock the API client before importing index
+    jest.doMock('./api/client', () => ({
+      TandoorApiClient: jest.fn().mockImplementation(() => ({
+        listAllFoods: listAllFoodsMock
+      }))
+    }));
+
     jest.doMock('./tools/import', () => ({
       RecipeImporter: jest.fn().mockImplementation(() => ({
         importRecipeFromJson: importRecipeMock
@@ -51,6 +61,12 @@ describe('MCP Server Integration', () => {
             name: "import_recipe_from_json",
             title: "Import recipe from JSON",
             description: expect.stringContaining("Import a recipe"),
+            inputSchema: expect.any(Object)
+          },
+          {
+            name: "list_all_foods",
+            title: "List all foods",
+            description: expect.stringContaining("paginated list"),
             inputSchema: expect.any(Object)
           }
         ]
@@ -132,6 +148,74 @@ describe('MCP Server Integration', () => {
         }
       })).rejects.toThrow(
         new McpError(ErrorCode.MethodNotFound, "Unknown tool: unknown_tool")
+      );
+    });
+  });
+
+  describe('Tool Call - list_all_foods', () => {
+    it('should successfully list all foods with pagination', async () => {
+      const mockFoodsResponse = {
+        results: [
+          { id: 1, name: 'Onion', plural_name: 'Onions' },
+          { id: 2, name: 'Tomato', plural_name: 'Tomatoes' }
+        ],
+        count: 2,
+        page: 1,
+        page_size: 20,
+        has_next: false,
+        has_previous: false
+      };
+
+      listAllFoodsMock.mockResolvedValue(mockFoodsResponse);
+
+      const response = await serverModule.callToolHandler({
+        params: {
+          name: 'list_all_foods',
+          arguments: { page: 1, page_size: 20 }
+        }
+      });
+
+      expect(listAllFoodsMock).toHaveBeenCalledWith(1, 20);
+      expect(response).toEqual({
+        content: [{ type: 'text', text: JSON.stringify(mockFoodsResponse, null, 2) }]
+      });
+    });
+
+    it('should use default pagination when not provided', async () => {
+      const mockFoodsResponse = {
+        results: [],
+        count: 0,
+        page: 1,
+        page_size: 20,
+        has_next: false,
+        has_previous: false
+      };
+
+      listAllFoodsMock.mockResolvedValue(mockFoodsResponse);
+
+      const response = await serverModule.callToolHandler({
+        params: {
+          name: 'list_all_foods',
+          arguments: {}
+        }
+      });
+
+      expect(listAllFoodsMock).toHaveBeenCalledWith(1, 20);
+      expect(response).toEqual({
+        content: [{ type: 'text', text: JSON.stringify(mockFoodsResponse, null, 2) }]
+      });
+    });
+
+    it('should handle API errors gracefully', async () => {
+      listAllFoodsMock.mockRejectedValue(new Error('API error'));
+
+      await expect(serverModule.callToolHandler({
+        params: {
+          name: 'list_all_foods',
+          arguments: {}
+        }
+      })).rejects.toThrow(
+        new McpError(ErrorCode.InternalError, "Failed to list foods: API error")
       );
     });
   });

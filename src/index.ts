@@ -47,19 +47,36 @@ const recipeSchema = z.object({
   nutrition: z.record(z.string(), z.any()).optional()
 });
 
+// Tool schema definitions (ZodRawShape format for MCP SDK)
+const importRecipeInputSchema = z.object({
+  recipe: recipeSchema
+});
+
+const listAllFoodsInputSchema = z.object({
+  page: z.number().int().min(1).optional(),
+  page_size: z.number().int().min(1).max(100).optional()
+});
+
 const tools = [
   {
     name: "import_recipe_from_json",
     title: "Import recipe from JSON",
     description: "Import a recipe from schema.org JSON format into Tandoor. The recipe must be a complete structured JSON object with mandatory fields: name, recipeIngredient, recipeInstructions. All referenced foods, units, and keywords must already exist in Tandoor.",
-    inputSchema: {
-      recipe: recipeSchema
-    }
+    inputSchema: importRecipeInputSchema
+  },
+  {
+    name: "list_all_foods",
+    title: "List all foods",
+    description: "Get a paginated list of all foods in Tandoor. Use this to build a local reference map of available foods for recipe import.",
+    inputSchema: listAllFoodsInputSchema
   }
 ];
 
 export const listToolsHandler = async (): Promise<{ tools: typeof tools }> => ({
-  tools
+  tools: [
+    tools[0],
+    tools[1]
+  ]
 });
 
 const importRecipeTool = async (args: { recipe?: SchemaOrgRecipe }, _extra: unknown): Promise<{ content: { type: 'text'; text: string }[] }> => {
@@ -86,6 +103,24 @@ const importRecipeTool = async (args: { recipe?: SchemaOrgRecipe }, _extra: unkn
   }
 };
 
+const listAllFoodsTool = async (args: { page?: number; page_size?: number }, _extra: unknown): Promise<{ content: { type: 'text'; text: string }[] }> => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  void _extra;
+  const { page = 1, page_size = 20 } = args;
+
+  try {
+    const result = await client.listAllFoods(page, page_size);
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }]
+    };
+  } catch (error) {
+    throw new McpError(
+      ErrorCode.InternalError,
+      `Failed to list foods: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+};
+
 interface CallToolRequest {
   params: {
     name: string;
@@ -99,6 +134,8 @@ export const callToolHandler = async (request: CallToolRequest): Promise<{ conte
   switch (name) {
     case "import_recipe_from_json":
       return importRecipeTool(args as { recipe?: SchemaOrgRecipe }, undefined);
+    case "list_all_foods":
+      return listAllFoodsTool(args as { page?: number; page_size?: number }, undefined);
 
     default:
       throw new McpError(
@@ -130,6 +167,16 @@ server.registerTool(
     inputSchema: tools[0].inputSchema
   },
   importRecipeTool
+);
+
+server.registerTool(
+  tools[1].name,
+  {
+    title: tools[1].title,
+    description: tools[1].description,
+    inputSchema: tools[1].inputSchema
+  },
+  listAllFoodsTool
 );
 
 // Start the server

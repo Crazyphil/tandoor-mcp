@@ -124,6 +124,30 @@ export class TandoorApiClient {
     return response.data;
   }
 
+  /** Search recipes with filters */
+  async searchRecipes(params: {
+    query?: string;
+    foods?: number[];
+    keywords?: number[];
+    books?: number[];
+    createdby?: number;
+    rating_gte?: number;
+    rating_lte?: number;
+    timescooked_gte?: number;
+    timescooked_lte?: number;
+    createdon_gte?: string;
+    createdon_lte?: string;
+    sort_order?: string;
+    page?: number;
+    page_size?: number;
+  }): Promise<PaginatedResponse<TandoorRecipeResponse>> {
+    const response = await this.client.get<PaginatedResponse<TandoorRecipeResponse>>(
+      '/api/recipe/',
+      { params }
+    );
+    return response.data;
+  }
+
   /** Upload image to recipe */
   async uploadRecipeImage(recipeId: number, imageUrl: string): Promise<void> {
     const formData = new FormData();

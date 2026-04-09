@@ -92,6 +92,27 @@ const createKeywordInputSchema = z.object({
   name: z.string().min(1)
 });
 
+const searchRecipesInputSchema = z.object({
+  query: z.string().optional(),
+  foods: z.array(z.number()).optional(),
+  keywords: z.array(z.number()).optional(),
+  books: z.array(z.number()).optional(),
+  createdby: z.number().optional(),
+  rating_gte: z.number().min(0).max(5).optional(),
+  rating_lte: z.number().min(0).max(5).optional(),
+  timescooked_gte: z.number().int().min(0).optional(),
+  timescooked_lte: z.number().int().min(0).optional(),
+  createdon_gte: z.string().optional(),
+  createdon_lte: z.string().optional(),
+  sort_order: z.enum(["score", "-score", "name", "-name", "created", "-created", "rating", "-rating"]).optional(),
+  page: z.number().int().min(1).optional(),
+  page_size: z.number().int().min(1).max(100).optional()
+});
+
+const getRecipeInputSchema = z.object({
+  recipe_id: z.number().int().min(1)
+});
+
 const tools = [
   {
     name: "import_recipe_from_json",
@@ -152,6 +173,18 @@ const tools = [
     title: "Create keyword",
     description: "Create a new keyword in Tandoor. Note: You must check if the keyword already exists using search_keyword() or list_all_keywords() before creating. If the keyword already exists, an error will be returned.",
     inputSchema: createKeywordInputSchema
+  },
+  {
+    name: "search_recipes",
+    title: "Search recipes",
+    description: "Search for recipes in Tandoor with optional filters. This tool only accepts IDs for food/keyword filtering (not names). Agents must resolve names to IDs using search_food() and search_keyword() before calling this tool. Returns paginated results.",
+    inputSchema: searchRecipesInputSchema
+  },
+  {
+    name: "get_recipe",
+    title: "Get recipe",
+    description: "Get full recipe details by ID. Returns the complete recipe in schema.org/Recipe format for consistency with import. Use this to verify imports or inspect recipe content.",
+    inputSchema: getRecipeInputSchema
   }
 ];
 
@@ -166,7 +199,9 @@ export const listToolsHandler = async (): Promise<{ tools: typeof tools }> => ({
     tools[6],
     tools[7],
     tools[8],
-    tools[9]
+    tools[9],
+    tools[10],
+    tools[11]
   ]
 });
 
@@ -470,6 +505,83 @@ const createKeywordTool = async (
   }
 };
 
+const searchRecipesTool = async (
+  args: {
+    query?: string;
+    foods?: number[];
+    keywords?: number[];
+    books?: number[];
+    createdby?: number;
+    rating_gte?: number;
+    rating_lte?: number;
+    timescooked_gte?: number;
+    timescooked_lte?: number;
+    createdon_gte?: string;
+    createdon_lte?: string;
+    sort_order?: string;
+    page?: number;
+    page_size?: number;
+  },
+  _extra: unknown
+): Promise<{ content: { type: 'text'; text: string }[] }> => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  void _extra;
+
+  try {
+    const result = await client.searchRecipes({
+      query: args.query,
+      foods: args.foods,
+      keywords: args.keywords,
+      books: args.books,
+      createdby: args.createdby,
+      rating_gte: args.rating_gte,
+      rating_lte: args.rating_lte,
+      timescooked_gte: args.timescooked_gte,
+      timescooked_lte: args.timescooked_lte,
+      createdon_gte: args.createdon_gte,
+      createdon_lte: args.createdon_lte,
+      sort_order: args.sort_order,
+      page: args.page ?? 1,
+      page_size: args.page_size ?? 20
+    });
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }]
+    };
+  } catch (error) {
+    throw new McpError(
+      ErrorCode.InternalError,
+      `Failed to search recipes: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+};
+
+const getRecipeTool = async (
+  args: { recipe_id: number },
+  _extra: unknown
+): Promise<{ content: { type: 'text'; text: string }[] }> => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  void _extra;
+
+  if (!args.recipe_id || args.recipe_id < 1) {
+    throw new McpError(
+      ErrorCode.InvalidParams,
+      "Missing or invalid required argument: recipe_id"
+    );
+  }
+
+  try {
+    const result = await client.getRecipe(args.recipe_id);
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }]
+    };
+  } catch (error) {
+    throw new McpError(
+      ErrorCode.InternalError,
+      `Failed to get recipe: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+};
+
 interface CallToolRequest {
   params: {
     name: string;
@@ -501,6 +613,25 @@ export const callToolHandler = async (request: CallToolRequest): Promise<{ conte
       return searchKeywordTool(args as { query: string }, undefined);
     case "create_keyword":
       return createKeywordTool(args as { name: string }, undefined);
+    case "search_recipes":
+      return searchRecipesTool(args as {
+        query?: string;
+        foods?: number[];
+        keywords?: number[];
+        books?: number[];
+        createdby?: number;
+        rating_gte?: number;
+        rating_lte?: number;
+        timescooked_gte?: number;
+        timescooked_lte?: number;
+        createdon_gte?: string;
+        createdon_lte?: string;
+        sort_order?: string;
+        page?: number;
+        page_size?: number;
+      }, undefined);
+    case "get_recipe":
+      return getRecipeTool(args as { recipe_id: number }, undefined);
 
     default:
       throw new McpError(
@@ -592,6 +723,56 @@ server.registerTool(
     inputSchema: tools[6].inputSchema
   },
   createUnitTool
+);
+
+server.registerTool(
+  tools[7].name,
+  {
+    title: tools[7].title,
+    description: tools[7].description,
+    inputSchema: tools[7].inputSchema
+  },
+  listAllKeywordsTool
+);
+
+server.registerTool(
+  tools[8].name,
+  {
+    title: tools[8].title,
+    description: tools[8].description,
+    inputSchema: tools[8].inputSchema
+  },
+  searchKeywordTool
+);
+
+server.registerTool(
+  tools[9].name,
+  {
+    title: tools[9].title,
+    description: tools[9].description,
+    inputSchema: tools[9].inputSchema
+  },
+  createKeywordTool
+);
+
+server.registerTool(
+  tools[10].name,
+  {
+    title: tools[10].title,
+    description: tools[10].description,
+    inputSchema: tools[10].inputSchema
+  },
+  searchRecipesTool
+);
+
+server.registerTool(
+  tools[11].name,
+  {
+    title: tools[11].title,
+    description: tools[11].description,
+    inputSchema: tools[11].inputSchema
+  },
+  getRecipeTool
 );
 
 // Start the server

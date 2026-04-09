@@ -352,6 +352,79 @@ Create a new keyword in Tandoor.
 }
 ```
 
+### `search_recipes`
+
+Search for recipes in Tandoor with optional filters. This tool only accepts IDs for food/keyword filtering (not names). Agents must resolve names to IDs using `search_food()` and `search_keyword()` before calling this tool.
+
+**Input**:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `query` | No | Full-text search string (name, description) |
+| `foods` | No | Array of food IDs to filter recipes containing those foods |
+| `keywords` | No | Array of keyword IDs to filter recipes with those tags |
+| `books` | No | Array of book IDs to filter recipes in those books |
+| `createdby` | No | User ID for recipe creator filter |
+| `rating_gte` | No | Minimum rating filter (0-5) |
+| `rating_lte` | No | Maximum rating filter (0-5) |
+| `timescooked_gte` | No | Minimum times cooked filter |
+| `timescooked_lte` | No | Maximum times cooked filter |
+| `createdon_gte` | No | Minimum creation date (YYYY-MM-DD) |
+| `createdon_lte` | No | Maximum creation date (YYYY-MM-DD) |
+| `sort_order` | No | Sort order: `score`, `-score`, `name`, `-name`, `created`, `-created`, `rating`, `-rating` |
+| `page` | No | Page number (default: 1) |
+| `page_size` | No | Results per page (default: 20, max: 100) |
+
+**Output**: An object with:
+- `results`: Array of recipe overview objects `{ id, name, description, rating, ... }`
+- `count`: Total number of matching recipes
+- `page`: Current page number
+- `page_size`: Items per page
+- `has_next`: Whether more pages exist
+- `has_previous`: Whether previous pages exist
+
+**Example**:
+
+```json
+{
+  "query": "pasta",
+  "keywords": [3],
+  "rating_gte": 4,
+  "sort_order": "-rating"
+}
+```
+
+### `get_recipe`
+
+Get full recipe details by ID. Returns the complete recipe in Tandoor format. Use this to verify imports or inspect recipe content.
+
+**Input**:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `recipe_id` | Yes | The recipe ID (integer) |
+
+**Output**: The full recipe object:
+
+```json
+{
+  "id": 42,
+  "name": "Chocolate Cake",
+  "description": "A rich chocolate cake",
+  "servings": 8,
+  "source_url": "https://example.com/chocolate-cake",
+  "keywords": [{ "id": 1, "name": "dessert" }],
+  "steps": [
+    {
+      "name": "Step 1",
+      "instruction": "Preheat oven to 180°C",
+      "order": 1,
+      "ingredients": []
+    }
+  ]
+}
+```
+
 ## Implemented Tools
 
 The following tools are currently available:
@@ -366,7 +439,8 @@ The following tools are currently available:
 - ✅ `list_all_keywords` - List all keywords with pagination
 - ✅ `search_keyword` - Search for keywords by query
 - ✅ `create_keyword` - Create a new keyword
-- ⬜ `search_recipes` / `get_recipe` - Recipe search and retrieval
+- ✅ `search_recipes` - Search recipes with filters
+- ✅ `get_recipe` - Get recipe by ID
 
 See [mcp-spec.md](./mcp-spec.md) for the complete specification.
 

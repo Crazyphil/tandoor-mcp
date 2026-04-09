@@ -26,6 +26,8 @@ describe('MCP Server Integration', () => {
   let listAllFoodsMock: jest.Mock;
   let searchFoodMock: jest.Mock;
   let createFoodMock: jest.Mock;
+  let searchRecipesMock: jest.Mock;
+  let getRecipeMock: jest.Mock;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let serverModule: any;
 
@@ -37,13 +39,17 @@ describe('MCP Server Integration', () => {
     listAllFoodsMock = jest.fn();
     searchFoodMock = jest.fn();
     createFoodMock = jest.fn();
+    searchRecipesMock = jest.fn();
+    getRecipeMock = jest.fn();
 
     // Mock the API client before importing index
     jest.doMock('./api/client', () => ({
       TandoorApiClient: jest.fn().mockImplementation(() => ({
         listAllFoods: listAllFoodsMock,
         searchFood: searchFoodMock,
-        createFood: createFoodMock
+        createFood: createFoodMock,
+        searchRecipes: searchRecipesMock,
+        getRecipe: getRecipeMock
       }))
     }));
 
@@ -121,6 +127,18 @@ describe('MCP Server Integration', () => {
             name: "create_keyword",
             title: "Create keyword",
             description: expect.stringContaining("keyword"),
+            inputSchema: expect.any(Object)
+          },
+          {
+            name: "search_recipes",
+            title: "Search recipes",
+            description: expect.stringContaining("Search for recipes"),
+            inputSchema: expect.any(Object)
+          },
+          {
+            name: "get_recipe",
+            title: "Get recipe",
+            description: expect.stringContaining("Get full recipe"),
             inputSchema: expect.any(Object)
           }
         ]
@@ -352,7 +370,7 @@ describe('MCP Server Integration', () => {
     it('should include search_food in the tool list', async () => {
       const response = await serverModule.listToolsHandler();
 
-      expect(response.tools).toHaveLength(10);
+      expect(response.tools).toHaveLength(12);
       expect(response.tools[2]).toEqual({
         name: "search_food",
         title: "Search foods",

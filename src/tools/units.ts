@@ -1,17 +1,17 @@
 /**
- * Keyword tool handlers for Tandoor MCP Server
+ * Unit tool handlers for Tandoor MCP Server
  *
- * Tools for listing, searching, and creating keywords in Tandoor.
+ * Tools for listing, searching, and creating measurement units in Tandoor.
  *
  * This module uses the factory pattern to create handler functions
  * that are pre-bound to a TandoorApiClient instance.
  */
 
-import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
-import { TandoorApiClient } from "../api/client";
-import { handleApiError, createEntityExistsError, isAxiosError } from "../utils/errors";
-import { createJsonResponse } from "../utils/response";
-import { HTTP_CONFLICT } from "../constants";
+import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
+import { TandoorApiClient } from '../api/client';
+import { handleApiError, createEntityExistsError, isAxiosError } from '../utils/errors';
+import { createJsonResponse } from '../utils/response';
+import { HTTP_CONFLICT } from '../constants';
 
 /**
  * Handler function type for MCP tools
@@ -20,23 +20,23 @@ import { HTTP_CONFLICT } from "../constants";
 type ToolHandler<T = any> = (args: T, extra: unknown) => Promise<{ content: { type: 'text'; text: string }[] }>;
 
 /**
- * Keyword tool handlers interface
+ * Unit tool handlers interface
  */
-interface KeywordToolHandlers {
+interface UnitToolHandlers {
   listAll: ToolHandler<{ page?: number; page_size?: number }>;
   search: ToolHandler<{ query: string }>;
   create: ToolHandler<{ name: string }>;
 }
 
 /**
- * Create keyword tool handlers bound to a TandoorApiClient instance
+ * Create unit tool handlers bound to a TandoorApiClient instance
  *
  * @param client - The TandoorApiClient to use for API calls
  * @returns Object containing listAll, search, and create handler functions
  */
-export function createKeywordToolHandlers(client: TandoorApiClient): KeywordToolHandlers {
+export function createUnitToolHandlers(client: TandoorApiClient): UnitToolHandlers {
   /**
-   * List all keywords with pagination
+   * List all units with pagination
    */
   const listAll = async (
     args: { page?: number; page_size?: number },
@@ -46,15 +46,15 @@ export function createKeywordToolHandlers(client: TandoorApiClient): KeywordTool
     const { page = 1, page_size = 20 } = args;
 
     try {
-      const result = await client.listAllKeywords(page, page_size);
+      const result = await client.listAllUnits(page, page_size);
       return createJsonResponse(result);
     } catch (error) {
-      throw handleApiError(error, 'keyword');
+      throw handleApiError(error, 'unit');
     }
   };
 
   /**
-   * Search for keywords by query string
+   * Search for units by query string
    */
   const search = async (
     args: { query: string },
@@ -71,15 +71,15 @@ export function createKeywordToolHandlers(client: TandoorApiClient): KeywordTool
     }
 
     try {
-      const result = await client.searchKeyword(query);
+      const result = await client.searchUnit(query);
       return createJsonResponse(result);
     } catch (error) {
-      throw handleApiError(error, 'keyword');
+      throw handleApiError(error, 'unit');
     }
   };
 
   /**
-   * Create a new keyword in Tandoor
+   * Create a new unit in Tandoor
    */
   const create = async (
     args: { name: string },
@@ -96,14 +96,14 @@ export function createKeywordToolHandlers(client: TandoorApiClient): KeywordTool
     }
 
     try {
-      const result = await client.createKeyword(name);
+      const result = await client.createUnit(name);
       return createJsonResponse(result);
     } catch (error) {
       // Check for 409 Conflict specifically to provide helpful error message
       if (isAxiosError(error) && error.response?.status === HTTP_CONFLICT) {
-        throw createEntityExistsError('keyword', name);
+        throw createEntityExistsError('unit', name);
       }
-      throw handleApiError(error, 'keyword', name);
+      throw handleApiError(error, 'unit', name);
     }
   };
 
@@ -113,7 +113,3 @@ export function createKeywordToolHandlers(client: TandoorApiClient): KeywordTool
     create
   };
 }
-
-// Keep old names for backward compatibility during transition
-/** @deprecated Use createKeywordToolHandlers instead */
-export const createKeywordToolHandlersOld = createKeywordToolHandlers;

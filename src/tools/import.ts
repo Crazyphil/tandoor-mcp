@@ -11,6 +11,12 @@ import {
   convertSchemaOrgToTandoor,
   identifyIgnoredFields
 } from '../utils/normalize';
+import {
+  MISSING_ENTITIES,
+  API_SCHEMA_MISMATCH,
+  UNEXPECTED_ERROR,
+  ENTITY_FETCH_PAGE_SIZE
+} from '../constants';
 
 export class RecipeImporter {
   constructor(private client: TandoorApiClient) {}
@@ -80,7 +86,7 @@ export class RecipeImporter {
             field_transformations,
             ignored_fields: identifyIgnoredFields(recipe),
             warnings: [...warnings, ...missingEntities],
-            error_code: 'missing_entities',
+            error_code: MISSING_ENTITIES,
             error_details: { missing: missingEntities }
           }
         };
@@ -101,7 +107,7 @@ export class RecipeImporter {
             field_transformations,
             ignored_fields: identifyIgnoredFields(recipe),
             warnings,
-            error_code: 'api_schema_mismatch',
+            error_code: API_SCHEMA_MISMATCH,
             error_details: errorBody
           }
         };
@@ -137,7 +143,7 @@ export class RecipeImporter {
           field_transformations: [],
           ignored_fields: identifyIgnoredFields(recipe),
           warnings: ['Unexpected error during import: ' + errorMessage],
-          error_code: 'unexpected_error',
+          error_code: UNEXPECTED_ERROR,
           error_details: errorMessage
         }
       };
@@ -146,6 +152,11 @@ export class RecipeImporter {
 
   /**
    * Build maps of entity names to IDs for efficient lookup
+   *
+   * Fetches all foods, units, and keywords in parallel using Promise.all
+   * for optimal performance. Each entity type is paginated through sequentially.
+   *
+   * @returns Promise resolving to success status, entity maps, and any warnings
    */
   private async buildEntityMaps(): Promise<{
     success: boolean;
@@ -159,58 +170,17 @@ export class RecipeImporter {
     try {
       const warnings: string[] = [];
 
-      // Fetch all foods
-      let allFoods: TandoorFood[] = [];
-      let foodPage = 1;
-      try {
-        let fetchMore = true;
-        while (fetchMore) {
-          const response = await this.client.listAllFoods(foodPage, 100);
-          allFoods = allFoods.concat(response.results);
-          if (!response.has_next) fetchMore = false;
-          foodPage++;
-        }
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        warnings.push('Failed to fetch foods list: ' + msg);
-      }
+      // Fetch all entity types in parallel for optimal performance
+      const [foodsResult, unitsResult, keywordsResult] = await Promise.all([
+        this.fetchAllFoods(warnings),
+        this.fetchAllUnits(warnings),
+        this.fetchAllKeywords(warnings)
+      ]);
 
-      // Fetch all units
-      let allUnits: TandoorUnit[] = [];
-      let unitPage = 1;
-      try {
-        let fetchMore = true;
-        while (fetchMore) {
-          const response = await this.client.listAllUnits(unitPage, 100);
-          allUnits = allUnits.concat(response.results);
-          if (!response.has_next) fetchMore = false;
-          unitPage++;
-        }
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        warnings.push('Failed to fetch units list: ' + msg);
-      }
-
-      // Fetch all keywords
-      let allKeywords: TandoorKeyword[] = [];
-      let keywordPage = 1;
-      try {
-        let fetchMore = true;
-        while (fetchMore) {
-          const response = await this.client.listAllKeywords(keywordPage, 100);
-          allKeywords = allKeywords.concat(response.results);
-          if (!response.has_next) fetchMore = false;
-          keywordPage++;
-        }
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        warnings.push('Failed to fetch keywords list: ' + msg);
-      }
-
-      // Build maps
-      const foodIdMap = new Map(allFoods.map(f => [f.name.toLowerCase(), f.id]));
-      const unitIdMap = new Map(allUnits.map(u => [u.name.toLowerCase(), u.id]));
-      const keywordIdMap = new Map(allKeywords.map(k => [k.name.toLowerCase(), k.id]));
+      // Build maps from fetched entities
+      const foodIdMap = new Map(foodsResult.map(f => [f.name.toLowerCase(), f.id]));
+      const unitIdMap = new Map(unitsResult.map(u => [u.name.toLowerCase(), u.id]));
+      const keywordIdMap = new Map(keywordsResult.map(k => [k.name.toLowerCase(), k.id]));
 
       return {
         success: true,
@@ -224,6 +194,81 @@ export class RecipeImporter {
         warnings: ['Fatal error building entity maps: ' + msg]
       };
     }
+  }
+
+  /**
+   * Fetch all foods with pagination
+   * @param warnings - Array to collect warning messages
+   * @returns Array of all fetched foods
+   */
+  private async fetchAllFoods(warnings: string[]): Promise<TandoorFood[]> {
+    const allFoods: TandoorFood[] = [];
+    let page = 1;
+
+    try {
+      let hasMore = true;
+      while (hasMore) {
+        const response = await this.client.listAllFoods(page, ENTITY_FETCH_PAGE_SIZE);
+        allFoods.push(...response.results);
+        hasMore = response.has_next;
+        page++;
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      warnings.push('Failed to fetch foods list: ' + msg);
+    }
+
+    return allFoods;
+  }
+
+  /**
+   * Fetch all units with pagination
+   * @param warnings - Array to collect warning messages
+   * @returns Array of all fetched units
+   */
+  private async fetchAllUnits(warnings: string[]): Promise<TandoorUnit[]> {
+    const allUnits: TandoorUnit[] = [];
+    let page = 1;
+
+    try {
+      let hasMore = true;
+      while (hasMore) {
+        const response = await this.client.listAllUnits(page, ENTITY_FETCH_PAGE_SIZE);
+        allUnits.push(...response.results);
+        hasMore = response.has_next;
+        page++;
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      warnings.push('Failed to fetch units list: ' + msg);
+    }
+
+    return allUnits;
+  }
+
+  /**
+   * Fetch all keywords with pagination
+   * @param warnings - Array to collect warning messages
+   * @returns Array of all fetched keywords
+   */
+  private async fetchAllKeywords(warnings: string[]): Promise<TandoorKeyword[]> {
+    const allKeywords: TandoorKeyword[] = [];
+    let page = 1;
+
+    try {
+      let hasMore = true;
+      while (hasMore) {
+        const response = await this.client.listAllKeywords(page, ENTITY_FETCH_PAGE_SIZE);
+        allKeywords.push(...response.results);
+        hasMore = response.has_next;
+        page++;
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      warnings.push('Failed to fetch keywords list: ' + msg);
+    }
+
+    return allKeywords;
   }
 
   /**

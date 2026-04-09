@@ -425,25 +425,6 @@ Get full recipe details by ID. Returns the complete recipe in Tandoor format. Us
 }
 ```
 
-## Implemented Tools
-
-The following tools are currently available:
-
-- ✅ `import_recipe_from_json` - Import a recipe from schema.org JSON format
-- ✅ `list_all_foods` - List all foods with pagination
-- ✅ `search_food` - Search for foods by query
-- ✅ `create_food` - Create a new food
-- ✅ `list_all_units` - List all units with pagination
-- ✅ `search_unit` - Search for units by query
-- ✅ `create_unit` - Create a new unit
-- ✅ `list_all_keywords` - List all keywords with pagination
-- ✅ `search_keyword` - Search for keywords by query
-- ✅ `create_keyword` - Create a new keyword
-- ✅ `search_recipes` - Search recipes with filters
-- ✅ `get_recipe` - Get recipe by ID
-
-See [mcp-spec.md](./mcp-spec.md) for the complete specification.
-
 ## Troubleshooting
 
 ### Authentication errors

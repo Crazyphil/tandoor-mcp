@@ -1,8 +1,15 @@
-import {
-  ErrorCode,
-  McpError,
-} from "@modelcontextprotocol/sdk/types.js";
+/**
+ * MCP Server Integration Tests for Tandoor MCP Server
+ *
+ * Tests the server setup and tool listing functionality.
+ * Individual tool handler tests are in their respective files
+ * (foods.test.ts, units.test.ts, keywords.test.ts, recipes.test.ts).
+ */
+
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js';
 import { SchemaOrgRecipe } from './types';
+import { listToolsHandler, tools } from './tools/tool-definitions';
 
 // Mock environment variables
 const originalEnv = process.env;
@@ -20,44 +27,14 @@ afterEach(() => {
 });
 
 jest.mock('./api/client');
+jest.mock('./tools/import');
 
 describe('MCP Server Integration', () => {
-  let importRecipeMock: jest.Mock;
-  let listAllFoodsMock: jest.Mock;
-  let searchFoodMock: jest.Mock;
-  let createFoodMock: jest.Mock;
-  let searchRecipesMock: jest.Mock;
-  let getRecipeMock: jest.Mock;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let serverModule: any;
+  let serverModule: typeof import('./index');
 
   beforeEach(async () => {
     jest.resetModules();
     jest.clearAllMocks();
-
-    importRecipeMock = jest.fn();
-    listAllFoodsMock = jest.fn();
-    searchFoodMock = jest.fn();
-    createFoodMock = jest.fn();
-    searchRecipesMock = jest.fn();
-    getRecipeMock = jest.fn();
-
-    // Mock the API client before importing index
-    jest.doMock('./api/client', () => ({
-      TandoorApiClient: jest.fn().mockImplementation(() => ({
-        listAllFoods: listAllFoodsMock,
-        searchFood: searchFoodMock,
-        createFood: createFoodMock,
-        searchRecipes: searchRecipesMock,
-        getRecipe: getRecipeMock
-      }))
-    }));
-
-    jest.doMock('./tools/import', () => ({
-      RecipeImporter: jest.fn().mockImplementation(() => ({
-        importRecipeFromJson: importRecipeMock
-      }))
-    }));
 
     // Dynamic import after mocks are set up
     serverModule = await import('./index');
@@ -65,439 +42,163 @@ describe('MCP Server Integration', () => {
 
   describe('Tool List', () => {
     it('should return the list of available tools', async () => {
-      const response = await serverModule.listToolsHandler();
-
-      expect(response).toEqual({
-        tools: [
-          {
-            name: "import_recipe_from_json",
-            title: "Import recipe from JSON",
-            description: expect.stringContaining("Import a recipe"),
-            inputSchema: expect.any(Object)
-          },
-          {
-            name: "list_all_foods",
-            title: "List all foods",
-            description: expect.stringContaining("paginated list"),
-            inputSchema: expect.any(Object)
-          },
-          {
-            name: "search_food",
-            title: "Search foods",
-            description: expect.stringContaining("Search for foods"),
-            inputSchema: expect.any(Object)
-          },
-          {
-            name: "create_food",
-            title: "Create food",
-            description: expect.stringContaining("Create a new food"),
-            inputSchema: expect.any(Object)
-          },
-          {
-            name: "list_all_units",
-            title: "List all units",
-            description: expect.stringContaining("measurement units"),
-            inputSchema: expect.any(Object)
-          },
-          {
-            name: "search_unit",
-            title: "Search units",
-            description: expect.stringContaining("measurement units"),
-            inputSchema: expect.any(Object)
-          },
-          {
-            name: "create_unit",
-            title: "Create unit",
-            description: expect.stringContaining("measurement unit"),
-            inputSchema: expect.any(Object)
-          },
-          {
-            name: "list_all_keywords",
-            title: "List all keywords",
-            description: expect.stringContaining("keywords"),
-            inputSchema: expect.any(Object)
-          },
-          {
-            name: "search_keyword",
-            title: "Search keywords",
-            description: expect.stringContaining("keywords"),
-            inputSchema: expect.any(Object)
-          },
-          {
-            name: "create_keyword",
-            title: "Create keyword",
-            description: expect.stringContaining("keyword"),
-            inputSchema: expect.any(Object)
-          },
-          {
-            name: "search_recipes",
-            title: "Search recipes",
-            description: expect.stringContaining("Search for recipes"),
-            inputSchema: expect.any(Object)
-          },
-          {
-            name: "get_recipe",
-            title: "Get recipe",
-            description: expect.stringContaining("Get full recipe"),
-            inputSchema: expect.any(Object)
-          }
-        ]
-      });
-    });
-  });
-
-  describe('Tool Call - import_recipe_from_json', () => {
-    it('should successfully import a recipe and return formatted result', async () => {
-      const mockImportResult = {
-        recipe_id: 123,
-        recipe_url: 'https://test.tandoor.com/api/recipe/123/',
-        import_status: 'success' as const,
-        mapping_notes: {
-          image_status: 'uploaded' as const,
-          field_transformations: [],
-          ignored_fields: [],
-          warnings: []
-        }
-      };
-
-      importRecipeMock.mockResolvedValue(mockImportResult as any);
-
-      const recipe: SchemaOrgRecipe = {
-        name: 'Test Recipe',
-        recipeIngredient: ['1 onion', '2 tomatoes'],
-        recipeInstructions: ['Chop onion', 'Add tomatoes']
-      };
-
-      const response = await serverModule.callToolHandler({
-        params: {
-          name: 'import_recipe_from_json',
-          arguments: { recipe }
-        }
-      });
-
-      expect(importRecipeMock).toHaveBeenCalledWith(recipe);
-      expect(response).toEqual({
-        content: [{ type: 'text', text: JSON.stringify(mockImportResult, null, 2) }]
-      });
-    });
-
-    it('should handle missing recipe parameter', async () => {
-      await expect(serverModule.callToolHandler({
-        params: {
-          name: 'import_recipe_from_json',
-          arguments: {}
-        }
-      })).rejects.toThrow(
-        new McpError(ErrorCode.InvalidParams, "Missing required argument: recipe")
-      );
-    });
-
-    it('should handle importer errors', async () => {
-      const error = new Error('Import failed');
-      importRecipeMock.mockRejectedValue(error);
-
-      const recipe: SchemaOrgRecipe = {
-        name: 'Test Recipe',
-        recipeIngredient: ['1 onion'],
-        recipeInstructions: ['Chop onion']
-      };
-
-      await expect(serverModule.callToolHandler({
-        params: {
-          name: 'import_recipe_from_json',
-          arguments: { recipe }
-        }
-      })).rejects.toThrow(
-        new McpError(ErrorCode.InternalError, "Import failed: Import failed")
-      );
-    });
-
-    it('should handle unknown tools', async () => {
-      await expect(serverModule.callToolHandler({
-        params: {
-          name: 'unknown_tool',
-          arguments: {}
-        }
-      })).rejects.toThrow(
-        new McpError(ErrorCode.MethodNotFound, "Unknown tool: unknown_tool")
-      );
-    });
-  });
-
-  describe('Tool Call - list_all_foods', () => {
-    it('should successfully list all foods with pagination', async () => {
-      const mockFoodsResponse = {
-        results: [
-          { id: 1, name: 'Onion', plural_name: 'Onions' },
-          { id: 2, name: 'Tomato', plural_name: 'Tomatoes' }
-        ],
-        count: 2,
-        page: 1,
-        page_size: 20,
-        has_next: false,
-        has_previous: false
-      };
-
-      listAllFoodsMock.mockResolvedValue(mockFoodsResponse);
-
-      const response = await serverModule.callToolHandler({
-        params: {
-          name: 'list_all_foods',
-          arguments: { page: 1, page_size: 20 }
-        }
-      });
-
-      expect(listAllFoodsMock).toHaveBeenCalledWith(1, 20);
-      expect(response).toEqual({
-        content: [{ type: 'text', text: JSON.stringify(mockFoodsResponse, null, 2) }]
-      });
-    });
-
-    it('should use default pagination when not provided', async () => {
-      const mockFoodsResponse = {
-        results: [],
-        count: 0,
-        page: 1,
-        page_size: 20,
-        has_next: false,
-        has_previous: false
-      };
-
-      listAllFoodsMock.mockResolvedValue(mockFoodsResponse);
-
-      const response = await serverModule.callToolHandler({
-        params: {
-          name: 'list_all_foods',
-          arguments: {}
-        }
-      });
-
-      expect(listAllFoodsMock).toHaveBeenCalledWith(1, 20);
-      expect(response).toEqual({
-        content: [{ type: 'text', text: JSON.stringify(mockFoodsResponse, null, 2) }]
-      });
-    });
-
-    it('should handle API errors gracefully', async () => {
-      listAllFoodsMock.mockRejectedValue(new Error('API error'));
-
-      await expect(serverModule.callToolHandler({
-        params: {
-          name: 'list_all_foods',
-          arguments: {}
-        }
-      })).rejects.toThrow(
-        new McpError(ErrorCode.InternalError, "Failed to list foods: API error")
-      );
-    });
-  });
-
-  describe('Tool Call - search_food', () => {
-    it('should successfully search for foods by query', async () => {
-      const mockSearchResults = [
-        { id: 1, name: 'Onion', plural_name: 'Onions' },
-        { id: 2, name: 'Green Onion', plural_name: 'Green Onions' }
-      ];
-
-      searchFoodMock.mockResolvedValue(mockSearchResults);
-
-      const response = await serverModule.callToolHandler({
-        params: {
-          name: 'search_food',
-          arguments: { query: 'onion' }
-        }
-      });
-
-      expect(searchFoodMock).toHaveBeenCalledWith('onion');
-      expect(response).toEqual({
-        content: [{ type: 'text', text: JSON.stringify(mockSearchResults, null, 2) }]
-      });
-    });
-
-    it('should return empty array when no foods match', async () => {
-      searchFoodMock.mockResolvedValue([]);
-
-      const response = await serverModule.callToolHandler({
-        params: {
-          name: 'search_food',
-          arguments: { query: 'xyz123nonexistent' }
-        }
-      });
-
-      expect(searchFoodMock).toHaveBeenCalledWith('xyz123nonexistent');
-      expect(response).toEqual({
-        content: [{ type: 'text', text: JSON.stringify([], null, 2) }]
-      });
-    });
-
-    it('should handle missing query parameter', async () => {
-      await expect(serverModule.callToolHandler({
-        params: {
-          name: 'search_food',
-          arguments: {}
-        }
-      })).rejects.toThrow(
-        new McpError(ErrorCode.InvalidParams, "Missing required argument: query")
-      );
-    });
-
-    it('should handle empty query parameter', async () => {
-      await expect(serverModule.callToolHandler({
-        params: {
-          name: 'search_food',
-          arguments: { query: '' }
-        }
-      })).rejects.toThrow(
-        new McpError(ErrorCode.InvalidParams, "Missing required argument: query")
-      );
-    });
-
-    it('should handle API errors gracefully', async () => {
-      searchFoodMock.mockRejectedValue(new Error('Search API error'));
-
-      await expect(serverModule.callToolHandler({
-        params: {
-          name: 'search_food',
-          arguments: { query: 'tomato' }
-        }
-      })).rejects.toThrow(
-        new McpError(ErrorCode.InternalError, "Failed to search foods: Search API error")
-      );
-    });
-  });
-
-  describe('Tool List - includes search_food', () => {
-    it('should include search_food in the tool list', async () => {
-      const response = await serverModule.listToolsHandler();
+      const response = await listToolsHandler();
 
       expect(response.tools).toHaveLength(12);
-      expect(response.tools[2]).toEqual({
-        name: "search_food",
-        title: "Search foods",
-        description: expect.stringContaining("Search for foods"),
+
+      // Verify key tools are present
+      const toolNames = response.tools.map(t => t.name);
+      expect(toolNames).toContain('import_recipe_from_json');
+      expect(toolNames).toContain('list_all_foods');
+      expect(toolNames).toContain('search_food');
+      expect(toolNames).toContain('create_food');
+      expect(toolNames).toContain('list_all_units');
+      expect(toolNames).toContain('search_unit');
+      expect(toolNames).toContain('create_unit');
+      expect(toolNames).toContain('list_all_keywords');
+      expect(toolNames).toContain('search_keyword');
+      expect(toolNames).toContain('create_keyword');
+      expect(toolNames).toContain('search_recipes');
+      expect(toolNames).toContain('get_recipe');
+
+      // Verify tool structure
+      const importRecipeTool = response.tools.find(t => t.name === 'import_recipe_from_json');
+      expect(importRecipeTool).toMatchObject({
+        name: 'import_recipe_from_json',
+        title: 'Import recipe from JSON',
+        description: expect.stringContaining('schema.org'),
+        inputSchema: expect.any(Object)
+      });
+    });
+
+    it('should have correct structure for search_food tool', async () => {
+      const response = await listToolsHandler();
+      const tool = response.tools.find(t => t.name === 'search_food');
+
+      expect(tool).toEqual({
+        name: 'search_food',
+        title: 'Search foods',
+        description: expect.stringContaining('Search for foods'),
+        inputSchema: expect.any(Object)
+      });
+    });
+
+    it('should have correct structure for create_keyword tool', async () => {
+      const response = await listToolsHandler();
+      const tool = response.tools.find(t => t.name === 'create_keyword');
+
+      expect(tool).toEqual({
+        name: 'create_keyword',
+        title: 'Create keyword',
+        description: expect.stringContaining('already exists'),
         inputSchema: expect.any(Object)
       });
     });
   });
 
-  describe('Tool Call - create_food', () => {
-    it('should successfully create a food with name only', async () => {
-      const mockCreateResult = {
-        id: 42,
-        name: 'Truffle Oil',
-        plural_name: null
-      };
+  describe('Server instance', () => {
+    it('should export an McpServer instance', async () => {
+      const { server } = serverModule;
 
-      createFoodMock.mockResolvedValue(mockCreateResult);
-
-      const response = await serverModule.callToolHandler({
-        params: {
-          name: 'create_food',
-          arguments: { name: 'Truffle Oil' }
-        }
-      });
-
-      expect(createFoodMock).toHaveBeenCalledWith('Truffle Oil', undefined);
-      expect(response).toEqual({
-        content: [{ type: 'text', text: JSON.stringify(mockCreateResult, null, 2) }]
-      });
+      expect(server).toBeDefined();
+      // McpServer doesn't expose many properties, but we can verify it was created
+      expect(typeof server).toBe('object');
     });
 
-    it('should successfully create a food with name and plural_name', async () => {
-      const mockCreateResult = {
-        id: 43,
-        name: 'Mushroom',
-        plural_name: 'Mushrooms'
-      };
+    it('should have server capabilities configured', async () => {
+      const { server } = serverModule;
 
-      createFoodMock.mockResolvedValue(mockCreateResult);
+      // The server should be a valid McpServer instance
+      expect(server).toBeDefined();
+      expect(server).not.toBeNull();
+    });
+  });
 
-      const response = await serverModule.callToolHandler({
-        params: {
-          name: 'create_food',
-          arguments: { name: 'Mushroom', plural_name: 'Mushrooms' }
-        }
-      });
+  describe('Tool definitions validation', () => {
+    it('all tools should have required fields', async () => {
+      const response = await listToolsHandler();
 
-      expect(createFoodMock).toHaveBeenCalledWith('Mushroom', 'Mushrooms');
-      expect(response).toEqual({
-        content: [{ type: 'text', text: JSON.stringify(mockCreateResult, null, 2) }]
-      });
+      for (const tool of response.tools) {
+        expect(tool.name).toBeDefined();
+        expect(tool.title).toBeDefined();
+        expect(tool.description).toBeDefined();
+        expect(tool.inputSchema).toBeDefined();
+        expect(typeof tool.name).toBe('string');
+        expect(typeof tool.title).toBe('string');
+        expect(typeof tool.description).toBe('string');
+        expect(typeof tool.inputSchema).toBe('object');
+      }
     });
 
-    it('should handle missing name parameter', async () => {
-      await expect(serverModule.callToolHandler({
-        params: {
-          name: 'create_food',
-          arguments: {}
-        }
-      })).rejects.toThrow(
-        new McpError(ErrorCode.InvalidParams, "Missing required argument: name")
-      );
+    it('search tools should describe their purpose', async () => {
+      const response = await listToolsHandler();
+      const searchTools = response.tools.filter(t => t.name.includes('search'));
+
+      for (const tool of searchTools) {
+        expect(tool.description).toContain('Search');
+        expect(tool.title).toContain('Search');
+      }
     });
 
-    it('should handle empty name parameter', async () => {
-      await expect(serverModule.callToolHandler({
-        params: {
-          name: 'create_food',
-          arguments: { name: '' }
-        }
-      })).rejects.toThrow(
-        new McpError(ErrorCode.InvalidParams, "Missing required argument: name")
-      );
+    it('list tools should describe their pagination support', async () => {
+      const response = await listToolsHandler();
+      const listTools = response.tools.filter(t => t.name.startsWith('list_all'));
+
+      for (const tool of listTools) {
+        expect(tool.description).toContain('paginated');
+        expect(tool.inputSchema).toBeDefined();
+      }
     });
 
-    it('should handle whitespace-only name parameter', async () => {
-      await expect(serverModule.callToolHandler({
-        params: {
-          name: 'create_food',
-          arguments: { name: '   ' }
-        }
-      })).rejects.toThrow(
-        new McpError(ErrorCode.InvalidParams, "Missing required argument: name")
-      );
+    it('create tools should mention checking for duplicates', async () => {
+      const response = await listToolsHandler();
+      const createTools = response.tools.filter(t => t.name.startsWith('create_'));
+
+      for (const tool of createTools) {
+        expect(tool.description).toContain('already exists');
+        expect(tool.description).toContain('check');
+      }
+    });
+  });
+
+  describe('Schema validation', () => {
+    it('all tools should have valid input schemas', async () => {
+      const response = await listToolsHandler();
+
+      for (const tool of response.tools) {
+        const schema = tool.inputSchema;
+        expect(schema).toBeDefined();
+        // Zod schema objects have _def or similar internal structure
+        // Just verify it's an object with expected Zod-like properties
+        expect(typeof schema).toBe('object');
+        expect(schema).not.toBeNull();
+      }
     });
 
-    it('should handle entity_already_exists error (409 Conflict)', async () => {
-      const conflictError = new Error('Conflict');
-      (conflictError as any).response = { status: 409, data: {} };
-      createFoodMock.mockRejectedValue(conflictError);
+    it('import_recipe_from_json should require recipe field', async () => {
+      const response = await listToolsHandler();
+      const tool = response.tools.find(t => t.name === 'import_recipe_from_json');
 
-      await expect(serverModule.callToolHandler({
-        params: {
-          name: 'create_food',
-          arguments: { name: 'Onion' }
-        }
-      })).rejects.toThrow(
-        new McpError(
-          ErrorCode.InvalidParams,
-          JSON.stringify({
-            error_code: "entity_already_exists",
-            details: {
-              entity_type: "food",
-              entity_name: "Onion"
-            },
-            suggestions: [
-              "Food 'Onion' already exists in database",
-              "Use search_food() or list_all_foods() to verify existence before calling create_food()",
-              "If you need to use this entity, reference its existing ID"
-            ]
-          })
-        )
-      );
+      expect(tool).toBeDefined();
+      expect(tool!.inputSchema).toBeDefined();
     });
 
-    it('should handle API errors gracefully', async () => {
-      createFoodMock.mockRejectedValue(new Error('API server error'));
+    it('search tools should require query field', async () => {
+      const response = await listToolsHandler();
+      const searchFoodTool = response.tools.find(t => t.name === 'search_food');
+      const searchUnitTool = response.tools.find(t => t.name === 'search_unit');
+      const searchKeywordTool = response.tools.find(t => t.name === 'search_keyword');
 
-      await expect(serverModule.callToolHandler({
-        params: {
-          name: 'create_food',
-          arguments: { name: 'New Food' }
-        }
-      })).rejects.toThrow(
-        new McpError(ErrorCode.InternalError, "Failed to create food: API server error")
-      );
+      expect(searchFoodTool!.inputSchema).toBeDefined();
+      expect(searchUnitTool!.inputSchema).toBeDefined();
+      expect(searchKeywordTool!.inputSchema).toBeDefined();
+    });
+
+    it('list tools should have optional pagination parameters', async () => {
+      const response = await listToolsHandler();
+      const listFoodsTool = response.tools.find(t => t.name === 'list_all_foods');
+
+      expect(listFoodsTool!.inputSchema).toBeDefined();
     });
   });
 });

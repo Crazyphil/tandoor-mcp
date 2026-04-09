@@ -1,17 +1,17 @@
 /**
- * Keyword tool handlers for Tandoor MCP Server
+ * Food tool handlers for Tandoor MCP Server
  *
- * Tools for listing, searching, and creating keywords in Tandoor.
+ * Tools for listing, searching, and creating foods in Tandoor.
  *
  * This module uses the factory pattern to create handler functions
  * that are pre-bound to a TandoorApiClient instance.
  */
 
-import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
-import { TandoorApiClient } from "../api/client";
-import { handleApiError, createEntityExistsError, isAxiosError } from "../utils/errors";
-import { createJsonResponse } from "../utils/response";
-import { HTTP_CONFLICT } from "../constants";
+import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
+import { TandoorApiClient } from '../api/client';
+import { handleApiError, createEntityExistsError, isAxiosError } from '../utils/errors';
+import { createJsonResponse } from '../utils/response';
+import { HTTP_CONFLICT } from '../constants';
 
 /**
  * Handler function type for MCP tools
@@ -20,24 +20,25 @@ import { HTTP_CONFLICT } from "../constants";
 type ToolHandler<T = any> = (args: T, extra: unknown) => Promise<{ content: { type: 'text'; text: string }[] }>;
 
 /**
- * Keyword tool handlers interface
+ * Food tool handlers interface
  */
-interface KeywordToolHandlers {
+interface FoodToolHandlers {
   listAll: ToolHandler<{ page?: number; page_size?: number }>;
   search: ToolHandler<{ query: string }>;
-  create: ToolHandler<{ name: string }>;
+  create: ToolHandler<{ name: string; plural_name?: string }>;
 }
 
 /**
- * Create keyword tool handlers bound to a TandoorApiClient instance
+ * Create food tool handlers bound to a TandoorApiClient instance
  *
  * @param client - The TandoorApiClient to use for API calls
  * @returns Object containing listAll, search, and create handler functions
  */
-export function createKeywordToolHandlers(client: TandoorApiClient): KeywordToolHandlers {
+export function createFoodToolHandlers(client: TandoorApiClient): FoodToolHandlers {
   /**
-   * List all keywords with pagination
+   * List all foods with pagination
    */
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   const listAll = async (
     args: { page?: number; page_size?: number },
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -46,15 +47,15 @@ export function createKeywordToolHandlers(client: TandoorApiClient): KeywordTool
     const { page = 1, page_size = 20 } = args;
 
     try {
-      const result = await client.listAllKeywords(page, page_size);
+      const result = await client.listAllFoods(page, page_size);
       return createJsonResponse(result);
     } catch (error) {
-      throw handleApiError(error, 'keyword');
+      throw handleApiError(error, 'food');
     }
   };
 
   /**
-   * Search for keywords by query string
+   * Search for foods by query string
    */
   const search = async (
     args: { query: string },
@@ -71,22 +72,22 @@ export function createKeywordToolHandlers(client: TandoorApiClient): KeywordTool
     }
 
     try {
-      const result = await client.searchKeyword(query);
+      const result = await client.searchFood(query);
       return createJsonResponse(result);
     } catch (error) {
-      throw handleApiError(error, 'keyword');
+      throw handleApiError(error, 'food');
     }
   };
 
   /**
-   * Create a new keyword in Tandoor
+   * Create a new food in Tandoor
    */
   const create = async (
-    args: { name: string },
+    args: { name: string; plural_name?: string },
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _extra: unknown
   ): Promise<{ content: { type: 'text'; text: string }[] }> => {
-    const { name } = args;
+    const { name, plural_name } = args;
 
     if (!name || name.trim() === '') {
       throw new McpError(
@@ -96,14 +97,14 @@ export function createKeywordToolHandlers(client: TandoorApiClient): KeywordTool
     }
 
     try {
-      const result = await client.createKeyword(name);
+      const result = await client.createFood(name, plural_name);
       return createJsonResponse(result);
     } catch (error) {
       // Check for 409 Conflict specifically to provide helpful error message
       if (isAxiosError(error) && error.response?.status === HTTP_CONFLICT) {
-        throw createEntityExistsError('keyword', name);
+        throw createEntityExistsError('food', name);
       }
-      throw handleApiError(error, 'keyword', name);
+      throw handleApiError(error, 'food', name);
     }
   };
 
@@ -113,7 +114,3 @@ export function createKeywordToolHandlers(client: TandoorApiClient): KeywordTool
     create
   };
 }
-
-// Keep old names for backward compatibility during transition
-/** @deprecated Use createKeywordToolHandlers instead */
-export const createKeywordToolHandlersOld = createKeywordToolHandlers;

@@ -1,0 +1,25 @@
+// For format details, see https://aka.ms/devcontainer.json.
+{
+    "name": "tandoor-mcp",
+    // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+    "image": "mcr.microsoft.com/devcontainers/javascript-node:24",
+    "features": {
+        "ghcr.io/devcontainers/templates/typescript-node:5.0.0"
+    },
+
+    // Configure tool-specific properties.
+	"customizations": {
+		// Configure properties specific to VS Code.
+		"vscode": {
+			"settings": {
+                "telemetry.feedback.enabled": false,
+                "oaicopilot.baseUrl": "https://premiumize.ai/api/v1",
+            },
+			"extensions": [
+				"christian-kohler.npm-intellisense",
+                "Orta.vscode-jest",
+                "johnny-zhao.oai-compatible-copilot"
+			]
+		}
+	}
+}

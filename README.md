@@ -200,6 +200,65 @@ Create a new food in Tandoor.
 }
 ```
 
+### `list_all_units`
+
+Returns a paginated list of all measurement units in Tandoor.
+
+**Input**:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `page` | No | Page number (default: 1) |
+| `page_size` | No | Results per page (default: 20, max: 100) |
+
+**Output**: An object with:
+- `results`: Array of unit objects `{ id, name }`
+- `count`: Total number of units
+- `page`: Current page number
+- `page_size`: Items per page
+- `has_next`: Whether more pages exist
+- `has_previous`: Whether previous pages exist
+
+### `search_unit`
+
+Search for measurement units in Tandoor by name.
+
+**Input**:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `query` | Yes | Search string (e.g., "cup", "grams") |
+
+**Output**: An array of matching unit objects:
+
+```json
+[
+  { "id": 1, "name": "gram" },
+  { "id": 2, "name": "grams" }
+]
+```
+
+### `create_unit`
+
+Create a new measurement unit in Tandoor.
+
+**Important**: You must check if the unit already exists using `search_unit()` or `list_all_units()` before creating. If the unit already exists, an error will be returned.
+
+**Input**:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | Yes | Unit name (e.g., "pinch", "tablespoon") |
+
+**Output**: The created unit object:
+
+```json
+{
+  "id": 15,
+  "name": "pinch"
+}
+```
+
 **Error Response** (if food already exists):
 
 ```json

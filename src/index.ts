@@ -66,6 +66,19 @@ const createFoodInputSchema = z.object({
   plural_name: z.string().optional()
 });
 
+const listAllUnitsInputSchema = z.object({
+  page: z.number().int().min(1).optional(),
+  page_size: z.number().int().min(1).max(100).optional()
+});
+
+const searchUnitInputSchema = z.object({
+  query: z.string().min(1)
+});
+
+const createUnitInputSchema = z.object({
+  name: z.string().min(1)
+});
+
 const tools = [
   {
     name: "import_recipe_from_json",
@@ -90,6 +103,24 @@ const tools = [
     title: "Create food",
     description: "Create a new food in Tandoor. Note: You must check if the food already exists using search_food() or list_all_foods() before creating. If the food already exists, an error will be returned.",
     inputSchema: createFoodInputSchema
+  },
+  {
+    name: "list_all_units",
+    title: "List all units",
+    description: "Get a paginated list of all measurement units in Tandoor. Use this to build a local reference map of available units for recipe import.",
+    inputSchema: listAllUnitsInputSchema
+  },
+  {
+    name: "search_unit",
+    title: "Search units",
+    description: "Search for measurement units in Tandoor by name. Use this to find specific units by query string (e.g., 'cup', 'grams'). Returns matching units with their IDs and names.",
+    inputSchema: searchUnitInputSchema
+  },
+  {
+    name: "create_unit",
+    title: "Create unit",
+    description: "Create a new measurement unit in Tandoor. Note: You must check if the unit already exists using search_unit() or list_all_units() before creating. If the unit already exists, an error will be returned.",
+    inputSchema: createUnitInputSchema
   }
 ];
 
@@ -98,7 +129,10 @@ export const listToolsHandler = async (): Promise<{ tools: typeof tools }> => ({
     tools[0],
     tools[1],
     tools[2],
-    tools[3]
+    tools[3],
+    tools[4],
+    tools[5],
+    tools[6]
   ]
 });
 
@@ -215,6 +249,95 @@ const createFoodTool = async (args: { name: string; plural_name?: string }, _ext
   }
 };
 
+const listAllUnitsTool = async (args: { page?: number; page_size?: number }, _extra: unknown): Promise<{ content: { type: 'text'; text: string }[] }> => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  void _extra;
+  const { page = 1, page_size = 20 } = args;
+
+  try {
+    const result = await client.listAllUnits(page, page_size);
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }]
+    };
+  } catch (error) {
+    throw new McpError(
+      ErrorCode.InternalError,
+      `Failed to list units: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+};
+
+const searchUnitTool = async (args: { query: string }, _extra: unknown): Promise<{ content: { type: 'text'; text: string }[] }> => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  void _extra;
+  const { query } = args;
+
+  if (!query || query.trim() === '') {
+    throw new McpError(
+      ErrorCode.InvalidParams,
+      "Missing required argument: query"
+    );
+  }
+
+  try {
+    const result = await client.searchUnit(query);
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }]
+    };
+  } catch (error) {
+    throw new McpError(
+      ErrorCode.InternalError,
+      `Failed to search units: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+};
+
+const createUnitTool = async (args: { name: string }, _extra: unknown): Promise<{ content: { type: 'text'; text: string }[] }> => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  void _extra;
+  const { name } = args;
+
+  if (!name || name.trim() === '') {
+    throw new McpError(
+      ErrorCode.InvalidParams,
+      "Missing required argument: name"
+    );
+  }
+
+  try {
+    const result = await client.createUnit(name);
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }]
+    };
+  } catch (error) {
+    // Check if it's an "already exists" error (409 Conflict)
+    if (error && typeof error === 'object' && 'response' in error) {
+      const axiosError = error as { response?: { status?: number; data?: unknown } };
+      if (axiosError.response?.status === 409) {
+        throw new McpError(
+          ErrorCode.InvalidParams,
+          JSON.stringify({
+            error_code: "entity_already_exists",
+            details: {
+              entity_type: "unit",
+              entity_name: name
+            },
+            suggestions: [
+              `Unit '${name}' already exists in database`,
+              "Use search_unit() or list_all_units() to verify existence before calling create_unit()",
+              "If you need to use this entity, reference its existing ID"
+            ]
+          })
+        );
+      }
+    }
+    throw new McpError(
+      ErrorCode.InternalError,
+      `Failed to create unit: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+};
+
 interface CallToolRequest {
   params: {
     name: string;
@@ -234,6 +357,12 @@ export const callToolHandler = async (request: CallToolRequest): Promise<{ conte
       return searchFoodTool(args as { query: string }, undefined);
     case "create_food":
       return createFoodTool(args as { name: string; plural_name?: string }, undefined);
+    case "list_all_units":
+      return listAllUnitsTool(args as { page?: number; page_size?: number }, undefined);
+    case "search_unit":
+      return searchUnitTool(args as { query: string }, undefined);
+    case "create_unit":
+      return createUnitTool(args as { name: string }, undefined);
 
     default:
       throw new McpError(
@@ -295,6 +424,36 @@ server.registerTool(
     inputSchema: tools[3].inputSchema
   },
   createFoodTool
+);
+
+server.registerTool(
+  tools[4].name,
+  {
+    title: tools[4].title,
+    description: tools[4].description,
+    inputSchema: tools[4].inputSchema
+  },
+  listAllUnitsTool
+);
+
+server.registerTool(
+  tools[5].name,
+  {
+    title: tools[5].title,
+    description: tools[5].description,
+    inputSchema: tools[5].inputSchema
+  },
+  searchUnitTool
+);
+
+server.registerTool(
+  tools[6].name,
+  {
+    title: tools[6].title,
+    description: tools[6].description,
+    inputSchema: tools[6].inputSchema
+  },
+  createUnitTool
 );
 
 // Start the server

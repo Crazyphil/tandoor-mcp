@@ -86,6 +86,24 @@ describe('MCP Server Integration', () => {
             title: "Create food",
             description: expect.stringContaining("Create a new food"),
             inputSchema: expect.any(Object)
+          },
+          {
+            name: "list_all_units",
+            title: "List all units",
+            description: expect.stringContaining("measurement units"),
+            inputSchema: expect.any(Object)
+          },
+          {
+            name: "search_unit",
+            title: "Search units",
+            description: expect.stringContaining("measurement units"),
+            inputSchema: expect.any(Object)
+          },
+          {
+            name: "create_unit",
+            title: "Create unit",
+            description: expect.stringContaining("measurement unit"),
+            inputSchema: expect.any(Object)
           }
         ]
       });
@@ -316,7 +334,7 @@ describe('MCP Server Integration', () => {
     it('should include search_food in the tool list', async () => {
       const response = await serverModule.listToolsHandler();
 
-      expect(response.tools).toHaveLength(4);
+      expect(response.tools).toHaveLength(7);
       expect(response.tools[2]).toEqual({
         name: "search_food",
         title: "Search foods",

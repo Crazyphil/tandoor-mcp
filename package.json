@@ -1,8 +1,17 @@
 {
-  "name": "tandoor-mcp",
+  "name": "@crazyphil/tandoor-mcp",
   "version": "0.1.0",
   "description": "MCP server for Tandoor recipe importer",
   "main": "dist/index.js",
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "COPYING",
+    "COPYING.LESSER"
+  ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "ts-node src/index.ts",

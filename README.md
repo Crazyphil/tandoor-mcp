@@ -11,9 +11,32 @@ An MCP (Model Context Protocol) server for importing recipes into Tandoor Recipe
 
 ## Installation
 
+### From GitHub Packages (Recommended)
+
+To install the pre-built package from GitHub Packages:
+
+1. **Configure npm to use GitHub Packages** for this scope:
+   ```bash
+   # Create or edit ~/.npmrc
+   echo "@crazyphil:registry=https://npm.pkg.github.com" >> ~/.npmrc
+   ```
+
+2. **Install the package** globally or locally:
+   ```bash
+   # Global installation
+   npm install -g @crazyphil/tandoor-mcp
+   
+   # Or local installation
+   npm install @crazyphil/tandoor-mcp
+   ```
+
+### From Source
+
+If you prefer to build from source:
+
 ```bash
 # Clone the repository
-git clone https://github.com/your-repo/tandoor-mcp.git
+git clone https://github.com/crazyphil/tandoor-mcp.git
 cd tandoor-mcp
 
 # Install dependencies
@@ -45,6 +68,23 @@ To use this server, add it to your MCP client configuration. Below are examples 
 
 ### Claude Desktop (`claude_desktop_config.json`)
 
+**When installed from GitHub Packages (global):**
+```json
+{
+  "mcpServers": {
+    "tandoor": {
+      "command": "npx",
+      "args": ["-y", "@crazyphil/tandoor-mcp"],
+      "env": {
+        "TANDOOR_BASE_URL": "https://app.tandoor.dev",
+        "TANDOOR_API_TOKEN": "your-api-token-here"
+      }
+    }
+  }
+}
+```
+
+**When built from source:**
 ```json
 {
   "mcpServers": {
@@ -64,6 +104,23 @@ To use this server, add it to your MCP client configuration. Below are examples 
 
 Add to your Cursor settings (`~/.cursor/mcp.json`):
 
+**When installed from GitHub Packages:**
+```json
+{ 
+  "mcpServers": {
+    "tandoor": {
+      "command": "npx",
+      "args": ["-y", "@crazyphil/tandoor-mcp"],
+      "env": {
+        "TANDOOR_BASE_URL": "https://app.tandoor.dev",
+        "TANDOOR_API_TOKEN": "your-api-token-here"
+      }
+    }
+  }
+}
+```
+
+**When built from source:**
 ```json
 {
   "mcpServers": {
@@ -81,8 +138,13 @@ Add to your Cursor settings (`~/.cursor/mcp.json`):
 
 ### Other MCP Clients
 
-The server is started with Node.js and accepts the following arguments:
+**When installed from GitHub Packages (recommended):**
+```bash
+# Run directly with npx (no installation required)
+npx -y @crazyphil/tandoor-mcp
+```
 
+**When built from source:**
 ```bash
 node dist/index.js
 ```

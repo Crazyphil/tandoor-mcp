@@ -2,116 +2,165 @@
 
 An MCP (Model Context Protocol) server for importing recipes into Tandoor Recipes automatically from structured JSON objects.
 
-## Overview
+## Prerequisites
 
-This server implements tools to help AI agents import recipes into Tandoor Recipes by:
-1. Converting schema.org Recipe JSON to Tandoor-compatible format
-2. Validating and normalizing recipe data
-3. Managing food, unit, and keyword entities
-4. Handling recipe uploads with image attachments
+- Node.js 16+
+- npm or yarn
+- A running [Tandoor Recipes](https://github.com/TandoorRecipes/recipes) instance
+- A Tandoor API token (get it from your Tandoor account API settings)
 
-## Project Structure
+## Installation
 
-```
-tandoor-mcp/
-├── src/
-│   ├── api/
-│   │   └── client.ts              # Tandoor API client
-│   ├── tools/
-│   │   ├── import.ts              # Recipe importer tool (Tool A)
-│   │   └── import.test.ts         # Import tool tests
-│   ├── utils/
-│   │   ├── normalize.ts           # Schema conversion utilities
-│   │   ├── normalize.test.ts      # Normalization tests
-│   │   └── schema-conversion.test.ts
-│   ├── types.ts                   # TypeScript type definitions
-│   └── index.ts                   # MCP server entry point
-├── package.json
-├── tsconfig.json
-├── jest.config.js
-├── .eslintrc.json
-├── .gitignore
-├── mcp-spec.md                    # Formal MCP specification
-└── README.md                       # This file
+```bash
+# Clone the repository
+git clone https://github.com/your-repo/tandoor-mcp.git
+cd tandoor-mcp
+
+# Install dependencies
+npm install
+
+# Build the server
+npm run build
 ```
 
-## Implemented Tools
+## Configuration
 
-### Tool A: `import_recipe_from_json` ✅
+The MCP server requires the following environment variables:
 
-**Status**: Implemented with full tests
+| Variable | Description |
+|----------|-------------|
+| `TANDOOR_BASE_URL` | The base URL of your Tandoor instance (e.g., `https://app.tandoor.dev`) |
+| `TANDOOR_API_TOKEN` | Your Tandoor API token (found in Tandoor [API settings](https://app.tandoor.dev/settings/api)) |
 
-Imports a recipe from schema.org Recipe JSON format into Tandoor.
+You can set these in your environment or create a `.env` file:
 
-**Input**: 
-```typescript
-interface SchemaOrgRecipe {
-  name: string;                    // Required: Recipe name
-  recipeIngredient: string[];      // Required: List of ingredients
-  recipeInstructions: string[];    // Required: List of instructions
-  description?: string;             // Optional: Recipe description
-  servings?: number;               // Optional: Number of servings
-  recipeYield?: string | number;   // Optional: Alternative to servings
-  sourceUrl?: string;              // Optional: Recipe source URL
-  image?: string | string[];       // Optional: Image URL(s)
-  keywords?: string[];             // Optional: Recipe tags
-  recipeCuisine?: string | string[]; // Optional: Cuisine type(s)
-  recipeCategory?: string;         // Optional: Recipe category
-  prepTime?: string;               // Optional: ISO 8601 duration
-  cookTime?: string;               // Optional: ISO 8601 duration
-  totalTime?: string;              // Optional: ISO 8601 duration
-  nutrition?: object;              // Optional: Nutrition facts
-  [key: string]: any;              // Other schema.org fields
-}
+```bash
+TANDOOR_BASE_URL=https://app.tandoor.dev
+TANDOOR_API_TOKEN=your-api-token-here
 ```
 
-**Output**:
-```typescript
+## MCP Server Configuration
+
+To use this server, add it to your MCP client configuration. Below are examples for common clients.
+
+### Claude Desktop (`claude_desktop_config.json`)
+
+```json
 {
-  recipe_id: number;               // Tandoor recipe ID
-  recipe_url: string;              // URL to recipe in Tandoor
-  import_status: 'success' | 'error';
-  mapping_notes: {
-    image_status?: 'uploaded' | 'failed' | 'not_provided';
-    field_transformations: string[];  // List of applied transformations
-    ignored_fields: string[];         // Fields that were ignored
-    warnings: string[];               // Any warnings during import
-    error_code?: string;              // Error code if failed
-    error_details?: any;              // Detailed error information
+  "mcpServers": {
+    "tandoor": {
+      "command": "node",
+      "args": ["/path/to/tandoor-mcp/dist/index.js"],
+      "env": {
+        "TANDOOR_BASE_URL": "https://app.tandoor.dev",
+        "TANDOOR_API_TOKEN": "your-api-token-here"
+      }
+    }
   }
 }
 ```
 
-**Process**:
-1. Validates recipe has required fields (name, ingredients, instructions)
-2. Fetches all foods, units, and keywords from Tandoor
-3. Converts schema.org format to Tandoor format
-4. Validates all entities exist in Tandoor
-5. Creates recipe via POST to Tandoor API
-6. Optionally uploads recipe image
-7. Returns detailed result with transformation notes
+### Cursor
 
-**Error Handling**:
-- `invalid_payload`: Missing or invalid required fields
-- `missing_entities`: Referenced food/unit/keyword doesn't exist in Tandoor
-- `api_schema_mismatch`: Tandoor API rejected the recipe payload
-- `unexpected_error`: Unexpected runtime error
+Add to your Cursor settings (`~/.cursor/mcp.json`):
 
-## Setup and Installation
+```json
+{
+  "mcpServers": {
+    "tandoor": {
+      "command": "node",
+      "args": ["/path/to/tandoor-mcp/dist/index.js"],
+      "env": {
+        "TANDOOR_BASE_URL": "https://app.tandoor.dev",
+        "TANDOOR_API_TOKEN": "your-api-token-here"
+      }
+    }
+  }
+}
+```
 
-### Prerequisites
-- Node.js 16+
-- npm or yarn
+### Other MCP Clients
 
-### Installation
+The server is started with Node.js and accepts the following arguments:
 
 ```bash
-# Install dependencies
-npm install
+node dist/index.js
+```
 
-# Build TypeScript
-npm run build
+Set the environment variables `TANDOOR_BASE_URL` and `TANDOOR_API_TOKEN` before starting.
 
+## Available Tools
+
+### `import_recipe_from_json`
+
+Imports a recipe from schema.org Recipe JSON format into Tandoor.
+
+**Input**: A JSON object with the following fields:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | Yes | Recipe name |
+| `recipeIngredient` | Yes | List of ingredients (e.g., `["200g flour", "3 eggs"]`) |
+| `recipeInstructions` | Yes | List of instructions (e.g., `["Mix ingredients", "Bake at 180°C"]`) |
+| `description` | No | Recipe description |
+| `servings` | No | Number of servings |
+| `sourceUrl` | No | Original recipe URL |
+| `image` | No | Image URL |
+| `keywords` | No | List of tags |
+| `prepTime` | No | Prep time in ISO 8601 duration (e.g., `PT15M`) |
+| `cookTime` | No | Cook time in ISO 8601 duration (e.g., `PT30M`) |
+
+**Output**: An object with:
+- `recipe_id`: The created recipe's ID
+- `recipe_url`: URL to the recipe in Tandoor
+- `import_status`: Either `"success"` or `"error"`
+- `mapping_notes`: Details about field transformations, warnings, and any errors
+
+**Example**:
+
+```json
+{
+  "name": "Chocolate Cake",
+  "recipeIngredient": [
+    "200g flour",
+    "100g cocoa powder",
+    "4 eggs",
+    "200g sugar"
+  ],
+  "recipeInstructions": [
+    "Preheat oven to 180°C",
+    "Mix dry ingredients",
+    "Add eggs and mix well",
+    "Bake for 30 minutes"
+  ],
+  "servings": 8,
+  "prepTime": "PT15M",
+  "cookTime": "PT30M"
+}
+```
+
+## Planned Tools
+
+- `list_all_foods` / `search_food` / `create_food`
+- `list_all_units` / `search_unit` / `create_unit`
+- `list_all_keywords` / `search_keyword` / `create_keyword`
+- `search_recipes` / `get_recipe`
+
+See [mcp-spec.md](./mcp-spec.md) for the complete specification.
+
+## Troubleshooting
+
+### Authentication errors
+
+Make sure your API token is valid and has the necessary permissions in Tandoor.
+
+### Ingredient/keyword not found
+
+The importer will warn you if referenced ingredients, units, or keywords don't exist in Tandoor. You can either create them in Tandoor first, or use only ingredients and units that already exist.
+
+## Development
+
+```bash
 # Run tests
 npm test
 
@@ -122,227 +171,6 @@ npm run test:watch
 npm run lint
 ```
 
-## Development
-
-### Building
-
-```bash
-npm run build
-```
-
-Compiles TypeScript to JavaScript in the `dist/` directory.
-
-### Testing
-
-```bash
-npm test
-```
-
-Runs all test suites including:
-- **normalize.test.ts** - Tests for schema normalization utilities
-- **schema-conversion.test.ts** - Tests for schema.org to Tandoor conversion
-- **import.test.ts** - Tests for the recipe importer tool
-
-Coverage includes:
-- ✅ Recipe validation
-- ✅ ISO 8601 duration parsing
-- ✅ Ingredient amount/unit parsing
-- ✅ Instruction parsing
-- ✅ Schema.org to Tandoor conversion
-- ✅ Entity mapping
-- ✅ Error handling
-- ✅ Keyword mapping
-
-### Code Quality
-
-```bash
-npm run lint
-```
-
-Checks code style and quality issues.
-
-## Configuration
-
-### Tandoor Connection
-
-Create a `.env` file or pass configuration to `TandoorApiClient`:
-
-```typescript
-import { TandoorApiClient } from './src/api/client';
-
-const client = new TandoorApiClient({
-  baseUrl: 'https://app.tandoor.dev',
-  token: 'your-api-token'
-});
-```
-
-Get your API token from Tandoor's settings page.
-
-## Usage Example
-
-```typescript
-import { TandoorApiClient } from './src/api/client';
-import { RecipeImporter } from './src/tools/import';
-
-const client = new TandoorApiClient({
-  baseUrl: 'https://app.tandoor.dev',
-  token: 'your-token'
-});
-
-const importer = new RecipeImporter(client);
-
-const recipe = {
-  name: 'Pasta Carbonara',
-  description: 'Classic Italian pasta with eggs and bacon',
-  recipeIngredient: [
-    '400g spaghetti',
-    '200g bacon',
-    '4 eggs',
-    '100g pecorino romano'
-  ],
-  recipeInstructions: [
-    'Bring a large pot of salted water to boil',
-    'Add pasta and cook until al dente',
-    'While pasta cooks, fry bacon until crispy',
-    'Beat eggs with grated cheese',
-    'Drain pasta and toss with hot bacon',
-    'Add egg mixture and toss quickly to avoid scrambling'
-  ],
-  servings: 4,
-  sourceUrl: 'https://example.com/carbonara',
-  keywords: ['Italian', 'Pasta', 'Quick']
-};
-
-const result = await importer.importRecipeFromJson(recipe);
-
-if (result.import_status === 'success') {
-  console.log(`Recipe imported! ID: ${result.recipe_id}`);
-  console.log(`URL: ${result.recipe_url}`);
-  console.log(`Transformations: ${result.mapping_notes.field_transformations}`);
-} else {
-  console.error('Import failed:', result.mapping_notes.error_details);
-  console.error('Warnings:', result.mapping_notes.warnings);
-}
-```
-
-## Planned Tools
-
-- **Tool B**: list_all_foods
-- **Tool C**: search_food
-- **Tool D**: create_food
-- **Tool E**: list_all_units
-- **Tool F**: search_unit
-- **Tool G**: create_unit
-- **Tool H**: list_all_keywords
-- **Tool I**: search_keyword
-- **Tool J**: create_keyword
-- **Tool K**: search_recipes
-- **Tool L**: get_recipe
-
-See [mcp-spec.md](./mcp-spec.md) for complete specification.
-
-## Error Handling
-
-The tool provides detailed error information to help agents understand what went wrong:
-
-### Validation Errors
-```json
-{
-  "import_status": "error",
-  "mapping_notes": {
-    "error_code": "invalid_payload",
-    "error_details": {
-      "field": "recipeIngredient",
-      "issue": "Missing or empty ingredient list"
-    }
-  }
-}
-```
-
-### Missing Entities
-```json
-{
-  "import_status": "error",
-  "mapping_notes": {
-    "error_code": "missing_entities",
-    "error_details": {
-      "missing": [
-        "Food 'unique ingredient' not found in Tandoor"
-      ]
-    },
-    "warnings": ["Food 'unique ingredient' not found..."]
-  }
-}
-```
-
-### API Errors
-```json
-{
-  "import_status": "error",
-  "mapping_notes": {
-    "error_code": "api_schema_mismatch",
-    "error_details": {
-      "detail": "Invalid recipe data"
-    }
-  }
-}
-```
-
-## Architecture
-
-### API Client (`src/api/client.ts`)
-- Handles all HTTP communication with Tandoor
-- Manages authentication via token
-- Provides methods for CRUD operations on foods, units, keywords, and recipes
-
-### Normalizer (`src/utils/normalize.ts`)
-- Converts schema.org Recipe format to Tandoor API format
-- Parses ISO 8601 durations (PT1H30M → 90 minutes)
-- Extracts amounts and units from ingredient strings
-- Maps keywords and categories to existing Tandoor entities
-
-### Importer Tool (`src/tools/import.ts`)
-- Orchestrates the import process
-- Validates recipes
-- Builds entity lookup maps
-- Handles errors gracefully
-- Manages image uploads
-
-## Testing Strategy
-
-### Unit Tests
-- Validation logic
-- Parsing functions (duration, amounts, instructions)
-- Entity mapping
-- Field transformation
-
-### Integration Tests
-- Full import workflow with mocked API
-- Error scenarios
-- Entity resolution
-- Image handling
-
-### Test Coverage
-All core business logic is covered. Mock tests ensure handlers work correctly without hitting a real Tandoor instance.
-
-Run with:
-```bash
-npm test -- --coverage
-```
-
-## Contributing
-
-1. Ensure all tests pass: `npm test`
-2. Lint your code: `npm run lint`
-3. Build the project: `npm run build`
-4. Follow the TypeScript conventions in the codebase
-
 ## License
 
 [GNU LGPLv3](./COPYING.LESSER)
-
-## API Documentation Reference
-
-For the complete MCP specification and all planned tools, see [mcp-spec.md](./mcp-spec.md)
-
-This project implements the Tandoor MCP Server specification for automated recipe importing.

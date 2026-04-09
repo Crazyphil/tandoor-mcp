@@ -245,7 +245,11 @@ function parseIngredients(
       return;
     }
 
-    const parsed = parseIngredientAmount(ingredientStr);
+    // Split on comma to separate main ingredient from note
+    const [mainPart, ...noteParts] = ingredientStr.split(',');
+    const note = noteParts.length > 0 ? noteParts.join(',').trim() : undefined;
+
+    const parsed = parseIngredientAmount(mainPart.trim());
     let foodName: string;
     let amount: string | undefined;
     let unitId: number | undefined;
@@ -265,6 +269,7 @@ function parseIngredients(
           if (entityMap.unitIdMap.has(potentialUnit)) {
             extractedUnit = potentialUnit;
             remainder = words.slice(i + 1).join(' ');
+            break; // Take the longest matching unit
           }
         }
       }
@@ -273,12 +278,12 @@ function parseIngredients(
         unitId = entityMap.unitIdMap.get(extractedUnit);
       }
 
-      foodName = remainder || unitAndFood;
+      foodName = remainder.trim() || unitAndFood;
     } else {
-      foodName = ingredientStr.trim();
+      foodName = mainPart.trim();
     }
 
-    foodName = foodName.trim().toLowerCase();
+    foodName = foodName.toLowerCase();
 
     // Skip if no food name
     if (!foodName) {
@@ -310,7 +315,7 @@ function parseIngredients(
       amount: amount ? parseFloat(amount) : undefined,
       unit: unitId,
       food: foodId,
-      note: undefined,
+      note: note,
       order: index
     });
   });

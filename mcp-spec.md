@@ -45,6 +45,14 @@ Auth: token query or header (e.g., `Authorization: Token <token>`)
   - `author`, `datePublished`, `url` → stored in `Recipe.source_url` or metadata (if supported)
   - Other schema.org fields (e.g., `estimatedCost`, `aggregateRating`) → ignored; agent will be notified in response
 
+- **Ingredient Format**: The `recipeIngredient` array must contain strings formatted as `[amount] [unit] [food name][, optional note]`, where:
+  - `amount` is a number (integer or decimal)
+  - `unit` is optional and must match existing Tandoor units
+  - `food name` must match existing Tandoor foods
+  - `note` is optional preparation or additional information, separated by a comma
+  - Examples: `"1 onion, chopped"`, `"2 cups tomatoes"`, `"salt"`, `"20g pecorino romano, grated"`
+  - Ingredients without amounts or units are supported (e.g., `"salt"` or `"pepper, white"`)
+
 - Behavior:
   1. Validate that payload is well-formed JSON and meets the expected recipe structure (return a structured validation error if not).
   2. Normalize keys (schema.org → Tandoor): `recipeIngredient` → `ingredients`; `recipeInstructions` → `steps`.
@@ -407,6 +415,7 @@ When this MCP server initializes a connection with an MCP client, it declares th
 
 ### Agent contract (required behavior)
 - Agent must produce valid JSON with no markdown/verbatim free text wrappers (`not: "<json> ..."`).
+- **Ingredient Format**: When providing `recipeIngredient` strings, use the format `[amount] [unit] [food name][, optional note]` (e.g., `"1 onion, chopped"`, `"2 cups tomatoes"`, `"salt"`). Amounts are numbers, units and foods must exist in Tandoor, notes are optional.
 - **Agent must check existence before creating**: Always use `list_all_*()` and `search_*()` tools to verify an entity does NOT exist before calling `create_*()` tools. This prevents `entity_already_exists` errors.
 - When MCP returns an error, agent should adapt payload and retry. Error responses must include structured fields for each failure path.
 - IDs are optional convenience data; agents may work with entity names and objects instead if preferred.
@@ -752,7 +761,8 @@ if import_result.get("error_code") == "missing_entities":
   "image": "https://example.com/image.jpg",
   "recipeIngredient": [
     "1 onion, chopped",
-    "2 cups tomatoes"
+    "2 cups tomatoes",
+    "1 tsp salt"
   ],
   "recipeInstructions": "Chop onions. Add tomatoes.",
   "keywords": ["pasta", "quick"]

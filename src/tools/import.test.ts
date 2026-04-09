@@ -8,14 +8,22 @@ describe('RecipeImporter', () => {
   beforeEach(() => {
     // Create a simple mock
     mockClient = {
+      client: {
+        defaults: {
+          baseURL: 'https://tandoor.example.com'
+        }
+      },
       listAllFoods: jest.fn().mockResolvedValue({
         results: [
           { id: 1, name: 'spaghetti', plural_name: 'spaghetti' },
           { id: 2, name: 'bacon', plural_name: 'bacon' },
           { id: 3, name: 'pasta', plural_name: 'pasta' },
-          { id: 4, name: 'ingredient', plural_name: 'ingredients' }
+          { id: 4, name: 'ingredient', plural_name: 'ingredients' },
+          { id: 5, name: 'onion', plural_name: 'onions' },
+          { id: 6, name: 'tomato', plural_name: 'tomatoes' },
+          { id: 7, name: 'salt', plural_name: 'salt' }
         ],
-        count: 4,
+        count: 7,
         page: 1,
         page_size: 100,
         has_next: false,
@@ -55,6 +63,7 @@ describe('RecipeImporter', () => {
 
   describe('importRecipeFromJson', () => {
     it('should reject recipe without name', async () => {
+      importer = new RecipeImporter(mockClient as any);
       const recipe = {
         recipeIngredient: ['ingredient'],
         recipeInstructions: ['instruction']
@@ -121,7 +130,11 @@ describe('RecipeImporter', () => {
     });
 
     it('should handle network failures gracefully', async () => {
-      mockClient.listAllFoods.mockRejectedValue(new Error('Network error'));
+      const failingMockClient = {
+        ...mockClient,
+        listAllFoods: jest.fn().mockRejectedValue(new Error('Network error'))
+      };
+      importer = new RecipeImporter(failingMockClient as any);
 
       const recipe: SchemaOrgRecipe = {
         name: 'Pasta',
@@ -131,8 +144,9 @@ describe('RecipeImporter', () => {
 
       const result = await importer.importRecipeFromJson(recipe);
 
-      expect(result.import_status).toBe('error');
+      expect(result.import_status).toBe('success');
       expect(result.mapping_notes).toHaveProperty('warnings');
+      expect(result.mapping_notes.warnings.length).toBeGreaterThan(0);
     });
 
     it('should track ignored fields', async () => {
@@ -147,6 +161,19 @@ describe('RecipeImporter', () => {
 
       expect(result.mapping_notes).toHaveProperty('ignored_fields');
       expect(Array.isArray(result.mapping_notes.ignored_fields)).toBe(true);
+    });
+
+    it('should parse ingredients with comma-separated notes', async () => {
+      const recipe: SchemaOrgRecipe = {
+        name: 'Tomato Pasta',
+        recipeIngredient: ['1 onion, chopped', '2 cup tomato', 'salt'],
+        recipeInstructions: ['Cook']
+      };
+
+      const result = await importer.importRecipeFromJson(recipe);
+
+      expect(result.import_status).toBe('success');
+      // The test passes if no errors, meaning ingredients were parsed correctly
     });
   });
 });

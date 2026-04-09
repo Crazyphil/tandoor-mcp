@@ -259,18 +259,94 @@ Create a new measurement unit in Tandoor.
 }
 ```
 
-**Error Response** (if food already exists):
+**Error Response** (if unit already exists):
 
 ```json
 {
   "error_code": "entity_already_exists",
   "details": {
-    "entity_type": "food",
-    "entity_name": "Onion"
+    "entity_type": "unit",
+    "entity_name": "pinch"
   },
   "suggestions": [
-    "Food 'Onion' already exists in database",
-    "Use search_food() or list_all_foods() to verify existence before calling create_food()",
+    "Unit 'pinch' already exists in database",
+    "Use search_unit() or list_all_units() to verify existence before calling create_unit()",
+    "If you need to use this entity, reference its existing ID"
+  ]
+}
+```
+
+### `list_all_keywords`
+
+Returns a paginated list of all keywords in Tandoor.
+
+**Input**:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `page` | No | Page number (default: 1) |
+| `page_size` | No | Results per page (default: 20, max: 100) |
+
+**Output**: An object with:
+- `results`: Array of keyword objects `{ id, name }`
+- `count`: Total number of keywords
+- `page`: Current page number
+- `page_size`: Items per page
+- `has_next`: Whether more pages exist
+- `has_previous`: Whether previous pages exist
+
+### `search_keyword`
+
+Search for keywords in Tandoor by name.
+
+**Input**:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `query` | Yes | Search string (e.g., "Italian", "vegetarian") |
+
+**Output**: An array of matching keyword objects:
+
+```json
+[
+  { "id": 1, "name": "Italian" },
+  { "id": 2, "name": "Indian" }
+]
+```
+
+### `create_keyword`
+
+Create a new keyword in Tandoor.
+
+**Important**: You must check if the keyword already exists using `search_keyword()` or `list_all_keywords()` before creating. If the keyword already exists, an error will be returned.
+
+**Input**:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | Yes | Keyword name (e.g., "Italian", "quick") |
+
+**Output**: The created keyword object:
+
+```json
+{
+  "id": 20,
+  "name": "gluten-free"
+}
+```
+
+**Error Response** (if keyword already exists):
+
+```json
+{
+  "error_code": "entity_already_exists",
+  "details": {
+    "entity_type": "keyword",
+    "entity_name": "Italian"
+  },
+  "suggestions": [
+    "Keyword 'Italian' already exists in database",
+    "Use search_keyword() or list_all_keywords() to verify existence before calling create_keyword()",
     "If you need to use this entity, reference its existing ID"
   ]
 }
@@ -284,8 +360,12 @@ The following tools are currently available:
 - ✅ `list_all_foods` - List all foods with pagination
 - ✅ `search_food` - Search for foods by query
 - ✅ `create_food` - Create a new food
-- ⬜ `list_all_units` / `search_unit` / `create_unit` - Unit management
-- ⬜ `list_all_keywords` / `search_keyword` / `create_keyword` - Keyword management
+- ✅ `list_all_units` - List all units with pagination
+- ✅ `search_unit` - Search for units by query
+- ✅ `create_unit` - Create a new unit
+- ✅ `list_all_keywords` - List all keywords with pagination
+- ✅ `search_keyword` - Search for keywords by query
+- ✅ `create_keyword` - Create a new keyword
 - ⬜ `search_recipes` / `get_recipe` - Recipe search and retrieval
 
 See [mcp-spec.md](./mcp-spec.md) for the complete specification.

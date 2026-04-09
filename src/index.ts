@@ -79,6 +79,19 @@ const createUnitInputSchema = z.object({
   name: z.string().min(1)
 });
 
+const listAllKeywordsInputSchema = z.object({
+  page: z.number().int().min(1).optional(),
+  page_size: z.number().int().min(1).max(100).optional()
+});
+
+const searchKeywordInputSchema = z.object({
+  query: z.string().min(1)
+});
+
+const createKeywordInputSchema = z.object({
+  name: z.string().min(1)
+});
+
 const tools = [
   {
     name: "import_recipe_from_json",
@@ -121,6 +134,24 @@ const tools = [
     title: "Create unit",
     description: "Create a new measurement unit in Tandoor. Note: You must check if the unit already exists using search_unit() or list_all_units() before creating. If the unit already exists, an error will be returned.",
     inputSchema: createUnitInputSchema
+  },
+  {
+    name: "list_all_keywords",
+    title: "List all keywords",
+    description: "Get a paginated list of all keywords in Tandoor. Use this to build a local reference map of available keywords for recipe import.",
+    inputSchema: listAllKeywordsInputSchema
+  },
+  {
+    name: "search_keyword",
+    title: "Search keywords",
+    description: "Search for keywords in Tandoor by name. Use this to find specific keywords by query string (e.g., 'Italian', 'vegetarian'). Returns matching keywords with their IDs and names.",
+    inputSchema: searchKeywordInputSchema
+  },
+  {
+    name: "create_keyword",
+    title: "Create keyword",
+    description: "Create a new keyword in Tandoor. Note: You must check if the keyword already exists using search_keyword() or list_all_keywords() before creating. If the keyword already exists, an error will be returned.",
+    inputSchema: createKeywordInputSchema
   }
 ];
 
@@ -132,7 +163,10 @@ export const listToolsHandler = async (): Promise<{ tools: typeof tools }> => ({
     tools[3],
     tools[4],
     tools[5],
-    tools[6]
+    tools[6],
+    tools[7],
+    tools[8],
+    tools[9]
   ]
 });
 
@@ -338,6 +372,104 @@ const createUnitTool = async (args: { name: string }, _extra: unknown): Promise<
   }
 };
 
+const listAllKeywordsTool = async (
+  args: { page?: number; page_size?: number },
+  _extra: unknown
+): Promise<{ content: { type: 'text'; text: string }[] }> => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  void _extra;
+  const { page = 1, page_size = 20 } = args;
+
+  try {
+    const result = await client.listAllKeywords(page, page_size);
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }]
+    };
+  } catch (error) {
+    throw new McpError(
+      ErrorCode.InternalError,
+      `Failed to list keywords: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+};
+
+const searchKeywordTool = async (
+  args: { query: string },
+  _extra: unknown
+): Promise<{ content: { type: 'text'; text: string }[] }> => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  void _extra;
+  const { query } = args;
+
+  if (!query || query.trim() === '') {
+    throw new McpError(
+      ErrorCode.InvalidParams,
+      "Missing required argument: query"
+    );
+  }
+
+  try {
+    const result = await client.searchKeyword(query);
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }]
+    };
+  } catch (error) {
+    throw new McpError(
+      ErrorCode.InternalError,
+      `Failed to search keywords: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+};
+
+const createKeywordTool = async (
+  args: { name: string },
+  _extra: unknown
+): Promise<{ content: { type: 'text'; text: string }[] }> => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  void _extra;
+  const { name } = args;
+
+  if (!name || name.trim() === '') {
+    throw new McpError(
+      ErrorCode.InvalidParams,
+      "Missing required argument: name"
+    );
+  }
+
+  try {
+    const result = await client.createKeyword(name);
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }]
+    };
+  } catch (error) {
+    // Check if it's an "already exists" error (409 Conflict)
+    if (error && typeof error === 'object' && 'response' in error) {
+      const axiosError = error as { response?: { status?: number; data?: unknown } };
+      if (axiosError.response?.status === 409) {
+        throw new McpError(
+          ErrorCode.InvalidParams,
+          JSON.stringify({
+            error_code: "entity_already_exists",
+            details: {
+              entity_type: "keyword",
+              entity_name: name
+            },
+            suggestions: [
+              `Keyword '${name}' already exists in database`,
+              "Use search_keyword() or list_all_keywords() to verify existence before calling create_keyword()",
+              "If you need to use this entity, reference its existing ID"
+            ]
+          })
+        );
+      }
+    }
+    throw new McpError(
+      ErrorCode.InternalError,
+      `Failed to create keyword: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+};
+
 interface CallToolRequest {
   params: {
     name: string;
@@ -363,6 +495,12 @@ export const callToolHandler = async (request: CallToolRequest): Promise<{ conte
       return searchUnitTool(args as { query: string }, undefined);
     case "create_unit":
       return createUnitTool(args as { name: string }, undefined);
+    case "list_all_keywords":
+      return listAllKeywordsTool(args as { page?: number; page_size?: number }, undefined);
+    case "search_keyword":
+      return searchKeywordTool(args as { query: string }, undefined);
+    case "create_keyword":
+      return createKeywordTool(args as { name: string }, undefined);
 
     default:
       throw new McpError(

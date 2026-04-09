@@ -25,6 +25,7 @@ describe('MCP Server Integration', () => {
   let importRecipeMock: jest.Mock;
   let listAllFoodsMock: jest.Mock;
   let searchFoodMock: jest.Mock;
+  let createFoodMock: jest.Mock;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let serverModule: any;
 
@@ -35,12 +36,14 @@ describe('MCP Server Integration', () => {
     importRecipeMock = jest.fn();
     listAllFoodsMock = jest.fn();
     searchFoodMock = jest.fn();
+    createFoodMock = jest.fn();
 
     // Mock the API client before importing index
     jest.doMock('./api/client', () => ({
       TandoorApiClient: jest.fn().mockImplementation(() => ({
         listAllFoods: listAllFoodsMock,
-        searchFood: searchFoodMock
+        searchFood: searchFoodMock,
+        createFood: createFoodMock
       }))
     }));
 
@@ -76,6 +79,12 @@ describe('MCP Server Integration', () => {
             name: "search_food",
             title: "Search foods",
             description: expect.stringContaining("Search for foods"),
+            inputSchema: expect.any(Object)
+          },
+          {
+            name: "create_food",
+            title: "Create food",
+            description: expect.stringContaining("Create a new food"),
             inputSchema: expect.any(Object)
           }
         ]
@@ -307,13 +316,134 @@ describe('MCP Server Integration', () => {
     it('should include search_food in the tool list', async () => {
       const response = await serverModule.listToolsHandler();
 
-      expect(response.tools).toHaveLength(3);
+      expect(response.tools).toHaveLength(4);
       expect(response.tools[2]).toEqual({
         name: "search_food",
         title: "Search foods",
         description: expect.stringContaining("Search for foods"),
         inputSchema: expect.any(Object)
       });
+    });
+  });
+
+  describe('Tool Call - create_food', () => {
+    it('should successfully create a food with name only', async () => {
+      const mockCreateResult = {
+        id: 42,
+        name: 'Truffle Oil',
+        plural_name: null
+      };
+
+      createFoodMock.mockResolvedValue(mockCreateResult);
+
+      const response = await serverModule.callToolHandler({
+        params: {
+          name: 'create_food',
+          arguments: { name: 'Truffle Oil' }
+        }
+      });
+
+      expect(createFoodMock).toHaveBeenCalledWith('Truffle Oil', undefined);
+      expect(response).toEqual({
+        content: [{ type: 'text', text: JSON.stringify(mockCreateResult, null, 2) }]
+      });
+    });
+
+    it('should successfully create a food with name and plural_name', async () => {
+      const mockCreateResult = {
+        id: 43,
+        name: 'Mushroom',
+        plural_name: 'Mushrooms'
+      };
+
+      createFoodMock.mockResolvedValue(mockCreateResult);
+
+      const response = await serverModule.callToolHandler({
+        params: {
+          name: 'create_food',
+          arguments: { name: 'Mushroom', plural_name: 'Mushrooms' }
+        }
+      });
+
+      expect(createFoodMock).toHaveBeenCalledWith('Mushroom', 'Mushrooms');
+      expect(response).toEqual({
+        content: [{ type: 'text', text: JSON.stringify(mockCreateResult, null, 2) }]
+      });
+    });
+
+    it('should handle missing name parameter', async () => {
+      await expect(serverModule.callToolHandler({
+        params: {
+          name: 'create_food',
+          arguments: {}
+        }
+      })).rejects.toThrow(
+        new McpError(ErrorCode.InvalidParams, "Missing required argument: name")
+      );
+    });
+
+    it('should handle empty name parameter', async () => {
+      await expect(serverModule.callToolHandler({
+        params: {
+          name: 'create_food',
+          arguments: { name: '' }
+        }
+      })).rejects.toThrow(
+        new McpError(ErrorCode.InvalidParams, "Missing required argument: name")
+      );
+    });
+
+    it('should handle whitespace-only name parameter', async () => {
+      await expect(serverModule.callToolHandler({
+        params: {
+          name: 'create_food',
+          arguments: { name: '   ' }
+        }
+      })).rejects.toThrow(
+        new McpError(ErrorCode.InvalidParams, "Missing required argument: name")
+      );
+    });
+
+    it('should handle entity_already_exists error (409 Conflict)', async () => {
+      const conflictError = new Error('Conflict');
+      (conflictError as any).response = { status: 409, data: {} };
+      createFoodMock.mockRejectedValue(conflictError);
+
+      await expect(serverModule.callToolHandler({
+        params: {
+          name: 'create_food',
+          arguments: { name: 'Onion' }
+        }
+      })).rejects.toThrow(
+        new McpError(
+          ErrorCode.InvalidParams,
+          JSON.stringify({
+            error_code: "entity_already_exists",
+            details: {
+              entity_type: "food",
+              entity_name: "Onion"
+            },
+            suggestions: [
+              "Food 'Onion' already exists in database",
+              "Use search_food() or list_all_foods() to verify existence before calling create_food()",
+              "If you need to use this entity, reference its existing ID"
+            ]
+          })
+        )
+      );
+    });
+
+    it('should handle API errors gracefully', async () => {
+      createFoodMock.mockRejectedValue(new Error('API server error'));
+
+      await expect(serverModule.callToolHandler({
+        params: {
+          name: 'create_food',
+          arguments: { name: 'New Food' }
+        }
+      })).rejects.toThrow(
+        new McpError(ErrorCode.InternalError, "Failed to create food: API server error")
+      );
     });
   });
 });

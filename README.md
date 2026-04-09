@@ -177,6 +177,46 @@ Search for foods in Tandoor by name.
 ]
 ```
 
+### `create_food`
+
+Create a new food in Tandoor.
+
+**Important**: You must check if the food already exists using `search_food()` or `list_all_foods()` before creating. If the food already exists, an error will be returned.
+
+**Input**:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | Yes | Food name (e.g., "truffle oil") |
+| `plural_name` | No | Plural form (e.g., "mushrooms") |
+
+**Output**: The created food object:
+
+```json
+{
+  "id": 42,
+  "name": "Truffle Oil",
+  "plural_name": null
+}
+```
+
+**Error Response** (if food already exists):
+
+```json
+{
+  "error_code": "entity_already_exists",
+  "details": {
+    "entity_type": "food",
+    "entity_name": "Onion"
+  },
+  "suggestions": [
+    "Food 'Onion' already exists in database",
+    "Use search_food() or list_all_foods() to verify existence before calling create_food()",
+    "If you need to use this entity, reference its existing ID"
+  ]
+}
+```
+
 ## Implemented Tools
 
 The following tools are currently available:
@@ -184,7 +224,7 @@ The following tools are currently available:
 - ✅ `import_recipe_from_json` - Import a recipe from schema.org JSON format
 - ✅ `list_all_foods` - List all foods with pagination
 - ✅ `search_food` - Search for foods by query
-- ⬜ `create_food` - Create a new food
+- ✅ `create_food` - Create a new food
 - ⬜ `list_all_units` / `search_unit` / `create_unit` - Unit management
 - ⬜ `list_all_keywords` / `search_keyword` / `create_keyword` - Keyword management
 - ⬜ `search_recipes` / `get_recipe` - Recipe search and retrieval

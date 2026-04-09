@@ -61,6 +61,11 @@ const searchFoodInputSchema = z.object({
   query: z.string().min(1)
 });
 
+const createFoodInputSchema = z.object({
+  name: z.string().min(1),
+  plural_name: z.string().optional()
+});
+
 const tools = [
   {
     name: "import_recipe_from_json",
@@ -79,6 +84,12 @@ const tools = [
     title: "Search foods",
     description: "Search for foods in Tandoor by name. Use this to find specific foods by query string (e.g., 'onion', 'tomatoes'). Returns matching foods with their IDs, names, plural forms, and substitutes.",
     inputSchema: searchFoodInputSchema
+  },
+  {
+    name: "create_food",
+    title: "Create food",
+    description: "Create a new food in Tandoor. Note: You must check if the food already exists using search_food() or list_all_foods() before creating. If the food already exists, an error will be returned.",
+    inputSchema: createFoodInputSchema
   }
 ];
 
@@ -86,7 +97,8 @@ export const listToolsHandler = async (): Promise<{ tools: typeof tools }> => ({
   tools: [
     tools[0],
     tools[1],
-    tools[2]
+    tools[2],
+    tools[3]
   ]
 });
 
@@ -157,6 +169,52 @@ const searchFoodTool = async (args: { query: string }, _extra: unknown): Promise
   }
 };
 
+const createFoodTool = async (args: { name: string; plural_name?: string }, _extra: unknown): Promise<{ content: { type: 'text'; text: string }[] }> => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  void _extra;
+  const { name, plural_name } = args;
+
+  if (!name || name.trim() === '') {
+    throw new McpError(
+      ErrorCode.InvalidParams,
+      "Missing required argument: name"
+    );
+  }
+
+  try {
+    const result = await client.createFood(name, plural_name);
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }]
+    };
+  } catch (error) {
+    // Check if it's an "already exists" error (409 Conflict)
+    if (error && typeof error === 'object' && 'response' in error) {
+      const axiosError = error as { response?: { status?: number; data?: unknown } };
+      if (axiosError.response?.status === 409) {
+        throw new McpError(
+          ErrorCode.InvalidParams,
+          JSON.stringify({
+            error_code: "entity_already_exists",
+            details: {
+              entity_type: "food",
+              entity_name: name
+            },
+            suggestions: [
+              `Food '${name}' already exists in database`,
+              "Use search_food() or list_all_foods() to verify existence before calling create_food()",
+              "If you need to use this entity, reference its existing ID"
+            ]
+          })
+        );
+      }
+    }
+    throw new McpError(
+      ErrorCode.InternalError,
+      `Failed to create food: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+};
+
 interface CallToolRequest {
   params: {
     name: string;
@@ -174,6 +232,8 @@ export const callToolHandler = async (request: CallToolRequest): Promise<{ conte
       return listAllFoodsTool(args as { page?: number; page_size?: number }, undefined);
     case "search_food":
       return searchFoodTool(args as { query: string }, undefined);
+    case "create_food":
+      return createFoodTool(args as { name: string; plural_name?: string }, undefined);
 
     default:
       throw new McpError(
@@ -225,6 +285,16 @@ server.registerTool(
     inputSchema: tools[2].inputSchema
   },
   searchFoodTool
+);
+
+server.registerTool(
+  tools[3].name,
+  {
+    title: tools[3].title,
+    description: tools[3].description,
+    inputSchema: tools[3].inputSchema
+  },
+  createFoodTool
 );
 
 // Start the server

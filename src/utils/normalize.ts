@@ -3,7 +3,8 @@ import {
   TandoorRecipePayload,
   TandoorStep,
   TandoorIngredient,
-  ValidationError
+  ValidationError,
+  RecipeInstruction
 } from '../types';
 
 /**
@@ -74,9 +75,8 @@ export function parseIngredientAmount(ingredientStr: string): { amount: string; 
 /**
  * Parse instructions string or array into TandoorStep objects
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function parseInstructions(
-  instructions: any
+  instructions: string | string[] | RecipeInstruction[] | undefined
 ): { steps: TandoorStep[]; warnings: string[] } {
   const warnings: string[] = [];
   const steps: TandoorStep[] = [];

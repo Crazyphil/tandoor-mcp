@@ -23,9 +23,10 @@ jest.mock('./api/client');
 
 describe('MCP Server Integration', () => {
   let importRecipeMock: jest.Mock;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let serverModule: any;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.resetModules();
     jest.clearAllMocks();
 
@@ -36,7 +37,8 @@ describe('MCP Server Integration', () => {
       }))
     }));
 
-    serverModule = require('./index');
+    // Dynamic import after mocks are set up
+    serverModule = await import('./index');
   });
 
   describe('Tool List', () => {

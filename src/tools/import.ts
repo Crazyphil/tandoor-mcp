@@ -91,8 +91,8 @@ export class RecipeImporter {
       try {
         const createdRecipe = await this.client.createRecipe(payload);
         recipeId = createdRecipe.id;
-      } catch (error: any) {
-        const errorBody = error.response?.data || error.message;
+      } catch (error: unknown) {
+        const errorBody = (error as { response?: { data?: unknown }; message?: string }).response?.data || (error as Error).message;
         return {
           recipe_id: -1,
           recipe_url: '',
@@ -127,7 +127,8 @@ export class RecipeImporter {
           warnings
         }
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       return {
         recipe_id: -1,
         recipe_url: '',
@@ -135,9 +136,9 @@ export class RecipeImporter {
         mapping_notes: {
           field_transformations: [],
           ignored_fields: identifyIgnoredFields(recipe),
-          warnings: ['Unexpected error during import: ' + (error.message || error)],
+          warnings: ['Unexpected error during import: ' + errorMessage],
           error_code: 'unexpected_error',
-          error_details: error
+          error_details: errorMessage
         }
       };
     }
@@ -170,7 +171,8 @@ export class RecipeImporter {
           foodPage++;
         }
       } catch (error) {
-        warnings.push('Failed to fetch foods list: ' + ((error as any)?.message || String(error)));
+        const msg = error instanceof Error ? error.message : String(error);
+        warnings.push('Failed to fetch foods list: ' + msg);
       }
 
       // Fetch all units
@@ -185,7 +187,8 @@ export class RecipeImporter {
           unitPage++;
         }
       } catch (error) {
-        warnings.push('Failed to fetch units list: ' + ((error as any)?.message || String(error)));
+        const msg = error instanceof Error ? error.message : String(error);
+        warnings.push('Failed to fetch units list: ' + msg);
       }
 
       // Fetch all keywords
@@ -200,7 +203,8 @@ export class RecipeImporter {
           keywordPage++;
         }
       } catch (error) {
-        warnings.push('Failed to fetch keywords list: ' + ((error as any)?.message || String(error)));
+        const msg = error instanceof Error ? error.message : String(error);
+        warnings.push('Failed to fetch keywords list: ' + msg);
       }
 
       // Build maps
@@ -214,9 +218,10 @@ export class RecipeImporter {
         warnings
       };
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
       return {
         success: false,
-        warnings: ['Fatal error building entity maps: ' + (error as any).message]
+        warnings: ['Fatal error building entity maps: ' + msg]
       };
     }
   }
@@ -278,7 +283,8 @@ export class RecipeImporter {
 
       await this.client.uploadRecipeImage(recipeId, imageUrl);
       return 'uploaded';
-    } catch (error) {
+    } catch {
+      // Image upload failed, return status
       return 'failed';
     }
   }

@@ -62,7 +62,9 @@ export const listToolsHandler = async (): Promise<{ tools: typeof tools }> => ({
   tools
 });
 
-const importRecipeTool = async (args: { recipe?: SchemaOrgRecipe }, extra: unknown) => {
+const importRecipeTool = async (args: { recipe?: SchemaOrgRecipe }, _extra: unknown): Promise<{ content: { type: 'text'; text: string }[] }> => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  void _extra;
   const recipe = args.recipe;
   if (!recipe) {
     throw new McpError(
@@ -84,12 +86,19 @@ const importRecipeTool = async (args: { recipe?: SchemaOrgRecipe }, extra: unkno
   }
 };
 
-export const callToolHandler = async (request: any): Promise<any> => {
+interface CallToolRequest {
+  params: {
+    name: string;
+    arguments: Record<string, unknown>;
+  };
+}
+
+export const callToolHandler = async (request: CallToolRequest): Promise<{ content: { type: 'text'; text: string }[] }> => {
   const { name, arguments: args } = request.params;
 
   switch (name) {
     case "import_recipe_from_json":
-      return importRecipeTool(args, undefined);
+      return importRecipeTool(args as { recipe?: SchemaOrgRecipe }, undefined);
 
     default:
       throw new McpError(

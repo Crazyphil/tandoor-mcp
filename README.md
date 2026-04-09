@@ -139,12 +139,55 @@ Imports a recipe from schema.org Recipe JSON format into Tandoor.
 }
 ```
 
-## Planned Tools
+### `list_all_foods`
 
-- `list_all_foods` / `search_food` / `create_food`
-- `list_all_units` / `search_unit` / `create_unit`
-- `list_all_keywords` / `search_keyword` / `create_keyword`
-- `search_recipes` / `get_recipe`
+Returns a paginated list of all foods in Tandoor.
+
+**Input**:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `page` | No | Page number (default: 1) |
+| `page_size` | No | Results per page (default: 20, max: 100) |
+
+**Output**: An object with:
+- `results`: Array of food objects `{ id, name, plural_name, substitute }`
+- `count`: Total number of foods
+- `page`: Current page number
+- `page_size`: Items per page
+- `has_next`: Whether more pages exist
+- `has_previous`: Whether previous pages exist
+
+### `search_food`
+
+Search for foods in Tandoor by name.
+
+**Input**:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `query` | Yes | Search string (e.g., "onion", "tomatoes") |
+
+**Output**: An array of matching food objects:
+
+```json
+[
+  { "id": 1, "name": "Onion", "plural_name": "Onions" },
+  { "id": 2, "name": "Green Onion", "plural_name": "Green Onions" }
+]
+```
+
+## Implemented Tools
+
+The following tools are currently available:
+
+- ✅ `import_recipe_from_json` - Import a recipe from schema.org JSON format
+- ✅ `list_all_foods` - List all foods with pagination
+- ✅ `search_food` - Search for foods by query
+- ⬜ `create_food` - Create a new food
+- ⬜ `list_all_units` / `search_unit` / `create_unit` - Unit management
+- ⬜ `list_all_keywords` / `search_keyword` / `create_keyword` - Keyword management
+- ⬜ `search_recipes` / `get_recipe` - Recipe search and retrieval
 
 See [mcp-spec.md](./mcp-spec.md) for the complete specification.
 

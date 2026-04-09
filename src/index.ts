@@ -57,6 +57,10 @@ const listAllFoodsInputSchema = z.object({
   page_size: z.number().int().min(1).max(100).optional()
 });
 
+const searchFoodInputSchema = z.object({
+  query: z.string().min(1)
+});
+
 const tools = [
   {
     name: "import_recipe_from_json",
@@ -69,13 +73,20 @@ const tools = [
     title: "List all foods",
     description: "Get a paginated list of all foods in Tandoor. Use this to build a local reference map of available foods for recipe import.",
     inputSchema: listAllFoodsInputSchema
+  },
+  {
+    name: "search_food",
+    title: "Search foods",
+    description: "Search for foods in Tandoor by name. Use this to find specific foods by query string (e.g., 'onion', 'tomatoes'). Returns matching foods with their IDs, names, plural forms, and substitutes.",
+    inputSchema: searchFoodInputSchema
   }
 ];
 
 export const listToolsHandler = async (): Promise<{ tools: typeof tools }> => ({
   tools: [
     tools[0],
-    tools[1]
+    tools[1],
+    tools[2]
   ]
 });
 
@@ -121,6 +132,31 @@ const listAllFoodsTool = async (args: { page?: number; page_size?: number }, _ex
   }
 };
 
+const searchFoodTool = async (args: { query: string }, _extra: unknown): Promise<{ content: { type: 'text'; text: string }[] }> => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  void _extra;
+  const { query } = args;
+
+  if (!query || query.trim() === '') {
+    throw new McpError(
+      ErrorCode.InvalidParams,
+      "Missing required argument: query"
+    );
+  }
+
+  try {
+    const result = await client.searchFood(query);
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }]
+    };
+  } catch (error) {
+    throw new McpError(
+      ErrorCode.InternalError,
+      `Failed to search foods: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+};
+
 interface CallToolRequest {
   params: {
     name: string;
@@ -136,6 +172,8 @@ export const callToolHandler = async (request: CallToolRequest): Promise<{ conte
       return importRecipeTool(args as { recipe?: SchemaOrgRecipe }, undefined);
     case "list_all_foods":
       return listAllFoodsTool(args as { page?: number; page_size?: number }, undefined);
+    case "search_food":
+      return searchFoodTool(args as { query: string }, undefined);
 
     default:
       throw new McpError(
@@ -177,6 +215,16 @@ server.registerTool(
     inputSchema: tools[1].inputSchema
   },
   listAllFoodsTool
+);
+
+server.registerTool(
+  tools[2].name,
+  {
+    title: tools[2].title,
+    description: tools[2].description,
+    inputSchema: tools[2].inputSchema
+  },
+  searchFoodTool
 );
 
 // Start the server

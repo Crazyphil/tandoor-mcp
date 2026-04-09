@@ -24,6 +24,7 @@ jest.mock('./api/client');
 describe('MCP Server Integration', () => {
   let importRecipeMock: jest.Mock;
   let listAllFoodsMock: jest.Mock;
+  let searchFoodMock: jest.Mock;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let serverModule: any;
 
@@ -33,11 +34,13 @@ describe('MCP Server Integration', () => {
 
     importRecipeMock = jest.fn();
     listAllFoodsMock = jest.fn();
+    searchFoodMock = jest.fn();
 
     // Mock the API client before importing index
     jest.doMock('./api/client', () => ({
       TandoorApiClient: jest.fn().mockImplementation(() => ({
-        listAllFoods: listAllFoodsMock
+        listAllFoods: listAllFoodsMock,
+        searchFood: searchFoodMock
       }))
     }));
 
@@ -67,6 +70,12 @@ describe('MCP Server Integration', () => {
             name: "list_all_foods",
             title: "List all foods",
             description: expect.stringContaining("paginated list"),
+            inputSchema: expect.any(Object)
+          },
+          {
+            name: "search_food",
+            title: "Search foods",
+            description: expect.stringContaining("Search for foods"),
             inputSchema: expect.any(Object)
           }
         ]
@@ -217,6 +226,94 @@ describe('MCP Server Integration', () => {
       })).rejects.toThrow(
         new McpError(ErrorCode.InternalError, "Failed to list foods: API error")
       );
+    });
+  });
+
+  describe('Tool Call - search_food', () => {
+    it('should successfully search for foods by query', async () => {
+      const mockSearchResults = [
+        { id: 1, name: 'Onion', plural_name: 'Onions' },
+        { id: 2, name: 'Green Onion', plural_name: 'Green Onions' }
+      ];
+
+      searchFoodMock.mockResolvedValue(mockSearchResults);
+
+      const response = await serverModule.callToolHandler({
+        params: {
+          name: 'search_food',
+          arguments: { query: 'onion' }
+        }
+      });
+
+      expect(searchFoodMock).toHaveBeenCalledWith('onion');
+      expect(response).toEqual({
+        content: [{ type: 'text', text: JSON.stringify(mockSearchResults, null, 2) }]
+      });
+    });
+
+    it('should return empty array when no foods match', async () => {
+      searchFoodMock.mockResolvedValue([]);
+
+      const response = await serverModule.callToolHandler({
+        params: {
+          name: 'search_food',
+          arguments: { query: 'xyz123nonexistent' }
+        }
+      });
+
+      expect(searchFoodMock).toHaveBeenCalledWith('xyz123nonexistent');
+      expect(response).toEqual({
+        content: [{ type: 'text', text: JSON.stringify([], null, 2) }]
+      });
+    });
+
+    it('should handle missing query parameter', async () => {
+      await expect(serverModule.callToolHandler({
+        params: {
+          name: 'search_food',
+          arguments: {}
+        }
+      })).rejects.toThrow(
+        new McpError(ErrorCode.InvalidParams, "Missing required argument: query")
+      );
+    });
+
+    it('should handle empty query parameter', async () => {
+      await expect(serverModule.callToolHandler({
+        params: {
+          name: 'search_food',
+          arguments: { query: '' }
+        }
+      })).rejects.toThrow(
+        new McpError(ErrorCode.InvalidParams, "Missing required argument: query")
+      );
+    });
+
+    it('should handle API errors gracefully', async () => {
+      searchFoodMock.mockRejectedValue(new Error('Search API error'));
+
+      await expect(serverModule.callToolHandler({
+        params: {
+          name: 'search_food',
+          arguments: { query: 'tomato' }
+        }
+      })).rejects.toThrow(
+        new McpError(ErrorCode.InternalError, "Failed to search foods: Search API error")
+      );
+    });
+  });
+
+  describe('Tool List - includes search_food', () => {
+    it('should include search_food in the tool list', async () => {
+      const response = await serverModule.listToolsHandler();
+
+      expect(response.tools).toHaveLength(3);
+      expect(response.tools[2]).toEqual({
+        name: "search_food",
+        title: "Search foods",
+        description: expect.stringContaining("Search for foods"),
+        inputSchema: expect.any(Object)
+      });
     });
   });
 });

@@ -71,6 +71,7 @@ export interface TandoorIngredient {
   order: number;
   is_header?: boolean;
   no_amount?: boolean;
+  original_text?: string; // original input text for documentation
 }
 
 export interface TandoorFood {

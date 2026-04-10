@@ -461,7 +461,8 @@ function parseIngredients(
       unit: unitId,
       food: foodId,
       note: note,
-      order: index
+      order: index,
+      original_text: ingredientStr
     });
   });
 

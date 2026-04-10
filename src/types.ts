@@ -84,6 +84,7 @@ export interface TandoorFood {
 export interface TandoorUnit {
   id: number;
   name: string;
+  plural_name?: string;
 }
 
 export interface TandoorKeyword {

@@ -84,6 +84,24 @@ Schema.org `recipeIngredient` is an array of strings in format:
 | `"salt"` | `{amount: undefined, unit: undefined, food: "salt", note: undefined}` |
 | `"20g pecorino romano, grated"` | `{amount: 20, unit: "g", food: "pecorino romano", note: "grated"}` |
 
+### Plural Form Support 📝
+
+**Status**: ✅ Implemented
+
+The import logic now supports both singular and plural forms for foods and units:
+
+| Input | Matches | Parsed Result |
+|-------|---------|---------------|
+| `"2 cups onions"` | unit `cup` → `cups`, food `onion` → `onions` | `{amount: 2, unit: "cup", food: "onion", note: undefined}` |
+| `"3 tomatoes, diced"` | food `tomato` → `tomatoes` | `{amount: 3, food: "tomato", note: "diced"}` |
+| `"500 grams flour"` | unit `gram` → `grams` | `{amount: 500, unit: "gram", food: "flour"}` |
+
+**Requirements for Plural Matching**:
+- Foods and units in Tandoor must have `plural_name` field set (e.g., "onion" → "onions", "cup" → "cups")
+- The original ingredient text is stored in `original_text` field for reference
+- Agents can use natural plural forms for better readability (e.g., "2 cups onions" instead of "2 cup onion")
+- **Recommendation**: When creating foods/units, always set `plural_name` if applicable for best ingredient matching
+
 ### Entity Resolution Rules
 
 | Entity | Required | Missing Behavior |
@@ -91,7 +109,7 @@ Schema.org `recipeIngredient` is an array of strings in format:
 | `food` | ✅ Yes | **Error** (`missing_entities`) - Import blocked |
 | `unit` | ❌ No | Stored without unit (amount only) |
 
-**Important**: Foods and units must **already exist** in Tandoor before import. Use `list_all_foods()`, `search_food()`, `create_food()` etc. to prepare entities.
+**Important**: Foods and units must **already exist** in Tandoor before import. Use `list_all_foods()`, `search_food()`, `create_food()` etc. to prepare entities. Set `plural_name` when creating foods and units to enable plural matching.
 
 ---
 

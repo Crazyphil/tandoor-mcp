@@ -212,7 +212,9 @@ export class RecipeImporter {
     success: boolean;
     entityMap?: {
       foodIdMap: Map<string, number>;
+      foodPluralMap: Map<string, number>;
       unitIdMap: Map<string, number>;
+      unitPluralMap: Map<string, number>;
       keywordIdMap: Map<string, number>;
     };
     warnings: string[];
@@ -227,14 +229,29 @@ export class RecipeImporter {
         this.fetchAllKeywords(warnings)
       ]);
 
-      // Build maps from fetched entities
+      // Build maps from fetched entities (singular forms)
       const foodIdMap = new Map(foodsResult.map(f => [f.name.toLowerCase(), f.id]));
       const unitIdMap = new Map(unitsResult.map(u => [u.name.toLowerCase(), u.id]));
       const keywordIdMap = new Map(keywordsResult.map(k => [k.name.toLowerCase(), k.id]));
 
+      // Build plural form maps for matching ingredients like "2 cups onions"
+      const foodPluralMap = new Map<string, number>();
+      for (const food of foodsResult) {
+        if (food.plural_name) {
+          foodPluralMap.set(food.plural_name.toLowerCase(), food.id);
+        }
+      }
+
+      const unitPluralMap = new Map<string, number>();
+      for (const unit of unitsResult) {
+        if (unit.plural_name) {
+          unitPluralMap.set(unit.plural_name.toLowerCase(), unit.id);
+        }
+      }
+
       return {
         success: true,
-        entityMap: { foodIdMap, unitIdMap, keywordIdMap },
+        entityMap: { foodIdMap, foodPluralMap, unitIdMap, unitPluralMap, keywordIdMap },
         warnings
       };
     } catch (error) {

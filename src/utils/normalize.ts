@@ -157,12 +157,18 @@ interface MissingEntities {
  * Convert schema.org Recipe to Tandoor recipe payload
  * Note: This does NOT validate or fetch entities from Tandoor
  * Caller must ensure all food_ids, unit_ids, keyword_ids exist
+ * 
+ * Entity map now includes plural forms for more natural ingredient parsing.
+ * Agents can use plural forms (e.g., "2 cups onions") which will be matched
+ * to singular food/unit entries if plural_name is configured in Tandoor.
  */
 export function convertSchemaOrgToTandoor(
   recipe: SchemaOrgRecipe,
   entityMap: {
     foodIdMap: Map<string, number>;
+    foodPluralMap: Map<string, number>;
     unitIdMap: Map<string, number>;
+    unitPluralMap: Map<string, number>;
     keywordIdMap: Map<string, number>;
   }
 ): { payload: TandoorRecipePayload; warnings: string[]; field_transformations: string[]; missingEntities: MissingEntities } {
@@ -370,12 +376,18 @@ export function convertSchemaOrgToTandoor(
 
 /**
  * Parse ingredients list and map to Tandoor ingredient format
+ * 
+ * Supports both singular and plural forms of units and foods.
+ * For example: "2 cups onions" will match unit "cup" and food "onion"
+ * if their plural_name fields are properly set in Tandoor.
  */
 function parseIngredients(
   ingredients: string[],
   entityMap: {
     foodIdMap: Map<string, number>;
+    foodPluralMap: Map<string, number>;
     unitIdMap: Map<string, number>;
+    unitPluralMap: Map<string, number>;
     keywordIdMap: Map<string, number>;
   }
 ): { ingredients: TandoorIngredient[]; warnings: string[]; missingEntities: MissingEntities } {
@@ -403,6 +415,7 @@ function parseIngredients(
       const unitAndFood = parsed.unit.trim();
 
       // Try to extract unit from the start of unitAndFood
+      // Check both singular and plural forms
       let extractedUnit = '';
       let remainder = unitAndFood;
 
@@ -410,15 +423,21 @@ function parseIngredients(
         const words = unitAndFood.split(/\s+/);
         for (let i = 0; i < words.length; i++) {
           const potentialUnit = words.slice(0, i + 1).join(' ').toLowerCase();
+          // Check singular first, then plural
           if (entityMap.unitIdMap.has(potentialUnit)) {
             extractedUnit = potentialUnit;
             remainder = words.slice(i + 1).join(' ');
             break; // Take the longest matching unit
+          } else if (entityMap.unitPluralMap && entityMap.unitPluralMap.has(potentialUnit)) {
+            extractedUnit = potentialUnit;
+            unitId = entityMap.unitPluralMap.get(potentialUnit);
+            remainder = words.slice(i + 1).join(' ');
+            break;
           }
         }
       }
 
-      if (extractedUnit) {
+      if (extractedUnit && unitId === undefined) {
         unitId = entityMap.unitIdMap.get(extractedUnit);
       }
 
@@ -435,16 +454,25 @@ function parseIngredients(
       return;
     }
 
-    // Look up food ID - try exact match first, then try variations
+    // Look up food ID - try exact match first, then try plural forms, then variations
     let foodId = entityMap.foodIdMap.get(foodName);
+    
+    // Try plural form if singular not found
+    if (foodId === undefined && entityMap.foodPluralMap) {
+      foodId = entityMap.foodPluralMap.get(foodName);
+    }
     
     if (foodId === undefined && foodName.includes(' ')) {
       // Try splitting on spaces and finding common food parts
       const foodWords = foodName.split(/\s+/);
       for (let i = foodWords.length; i > 0; i--) {
         const testName = foodWords.slice(0, i).join(' ');
+        // Check singular then plural
         if (entityMap.foodIdMap.has(testName)) {
           foodId = entityMap.foodIdMap.get(testName);
+          break;
+        } else if (entityMap.foodPluralMap && entityMap.foodPluralMap.has(testName)) {
+          foodId = entityMap.foodPluralMap.get(testName);
           break;
         }
       }

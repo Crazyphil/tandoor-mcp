@@ -12,11 +12,13 @@ describe('convertSchemaOrgToTandoor', () => {
       ['olive oil', 3],
       ['salt', 4]
     ]),
+    foodPluralMap: new Map<string, number>(), // Empty - plural matching tested separately
     unitIdMap: new Map([
       ['gram', 1],
       ['teaspoon', 2],
       ['cup', 3]
     ]),
+    unitPluralMap: new Map<string, number>(), // Empty - plural matching tested separately
     keywordIdMap: new Map([
       ['italian', 10],
       ['vegetarian', 11]
@@ -536,5 +538,99 @@ describe('convertSchemaOrgToTandoor', () => {
     // Should match exactly first (ketodiet -> 25)
     expect(payload.keywords).toContain(25);
     expect(field_transformations.some((t: string) => t.includes('KetoDiet'))).toBe(true);
+  });
+
+  it('should match plural unit forms in ingredients', () => {
+    const mockEntityMapWithPlurals = {
+      ...mockEntityMap,
+      unitPluralMap: new Map([
+        ['cups', 3],  // cup -> cups
+        ['grams', 1]  // gram -> grams
+      ]),
+      foodPluralMap: new Map<string, number>()
+    };
+
+    const recipe: SchemaOrgRecipe = {
+      name: 'Test',
+      recipeIngredient: ['2 cups pasta'],
+      recipeInstructions: ['Cook']
+    };
+
+    const { payload } = convertSchemaOrgToTandoor(recipe, mockEntityMapWithPlurals);
+
+    expect(payload.ingredients.length).toBe(1);
+    expect(payload.ingredients[0].amount).toBe(2);
+    expect(payload.ingredients[0].unit).toBe(3); // cups -> cup ID
+    expect(payload.ingredients[0].food).toBe(1); // pasta
+    expect(payload.ingredients[0].original_text).toBe('2 cups pasta');
+  });
+
+  it('should match plural food forms in ingredients', () => {
+    const mockEntityMapWithPlurals = {
+      ...mockEntityMap,
+      foodPluralMap: new Map([
+        ['tomatoes', 5],  // tomato -> tomatoes (new food)
+        ['onions', 6]     // onion -> onions (new food)
+      ]),
+      unitPluralMap: new Map<string, number>()
+    };
+
+    const recipe: SchemaOrgRecipe = {
+      name: 'Test',
+      recipeIngredient: ['3 tomatoes, diced'],
+      recipeInstructions: ['Cook']
+    };
+
+    const { payload } = convertSchemaOrgToTandoor(recipe, mockEntityMapWithPlurals);
+
+    expect(payload.ingredients.length).toBe(1);
+    expect(payload.ingredients[0].amount).toBe(3);
+    expect(payload.ingredients[0].food).toBe(5); // tomatoes -> tomato ID
+    expect(payload.ingredients[0].note).toBe('diced');
+    expect(payload.ingredients[0].original_text).toBe('3 tomatoes, diced');
+  });
+
+  it('should match both plural units and foods in same ingredient', () => {
+    const mockEntityMapWithPlurals = {
+      ...mockEntityMap,
+      unitPluralMap: new Map([
+        ['cups', 3]  // cup -> cups
+      ]),
+      foodPluralMap: new Map([
+        ['tomatoes', 5]  // tomato -> tomatoes
+      ])
+    };
+
+    const recipe: SchemaOrgRecipe = {
+      name: 'Test',
+      recipeIngredient: ['2 cups tomatoes'],
+      recipeInstructions: ['Cook']
+    };
+
+    const { payload } = convertSchemaOrgToTandoor(recipe, mockEntityMapWithPlurals);
+
+    expect(payload.ingredients.length).toBe(1);
+    expect(payload.ingredients[0].amount).toBe(2);
+    expect(payload.ingredients[0].unit).toBe(3); // cups -> cup ID
+    expect(payload.ingredients[0].food).toBe(5); // tomatoes -> tomato ID
+    expect(payload.ingredients[0].original_text).toBe('2 cups tomatoes');
+  });
+
+  it('should set no_amount for ingredients without amounts', () => {
+    const recipe: SchemaOrgRecipe = {
+      name: 'Test',
+      recipeIngredient: ['salt, to taste'],
+      recipeInstructions: ['Season with salt']
+    };
+
+    const { payload } = convertSchemaOrgToTandoor(recipe, mockEntityMap);
+
+    expect(payload.ingredients.length).toBe(1);
+    expect(payload.ingredients[0].food).toBe(4); // salt
+    expect(payload.ingredients[0].amount).toBeUndefined();
+    expect(payload.ingredients[0].unit).toBeUndefined();
+    expect(payload.ingredients[0].no_amount).toBe(true);
+    expect(payload.ingredients[0].note).toBe('to taste');
+    expect(payload.ingredients[0].original_text).toBe('salt, to taste');
   });
 });

@@ -52,6 +52,7 @@ Auth: token query or header (e.g., `Authorization: Token <token>`)
   - `note` is optional preparation or additional information, separated by a comma
   - Examples: `"1 onion, chopped"`, `"2 cups tomatoes"`, `"salt"`, `"20g pecorino romano, grated"`
   - Ingredients without amounts or units are supported (e.g., `"salt"` or `"pepper, white"`)
+  - **Plural Support**: Both singular and plural forms are accepted for units and foods (e.g., `"2 cups onions"` where `cup`→`cups`, `onion`→`onions`). The original text is preserved in `original_text` field for reference, so agents should use natural plural forms for better readability.
 
 - Behavior:
   1. Validate that payload is well-formed JSON and meets the expected recipe structure (return a structured validation error if not).

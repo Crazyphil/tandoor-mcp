@@ -20,7 +20,7 @@ export class TandoorApiClient {
     this.client = axios.create({
       baseURL: config.baseUrl,
       headers: {
-        Authorization: `Token ${config.token}`,
+        Authorization: `Bearer ${config.token}`,
         'Content-Type': 'application/json'
       }
     });

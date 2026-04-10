@@ -18,7 +18,8 @@
 			"extensions": [
 				"christian-kohler.npm-intellisense",
                 "Orta.vscode-jest",
-                "johnny-zhao.oai-compatible-copilot"
+                "johnny-zhao.oai-compatible-copilot",
+                "github.vscode-github-actions"
 			]
 		}
 	}

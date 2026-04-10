@@ -12,7 +12,8 @@ import {
   API_SCHEMA_MISMATCH,
   UNEXPECTED_ERROR,
   HTTP_CONFLICT,
-  HTTP_UNAUTHORIZED
+  HTTP_UNAUTHORIZED,
+  HTTP_FORBIDDEN
 } from '../constants';
 
 /**
@@ -80,8 +81,8 @@ export function handleApiError(
     return createEntityExistsError(entityType, entityName);
   }
 
-  // Handle 401 Unauthorized
-  if (status === HTTP_UNAUTHORIZED) {
+  // Handle 401 Unauthorized or 403 Forbidden
+  if (status === HTTP_UNAUTHORIZED || status === HTTP_FORBIDDEN) {
     return new McpError(
       ErrorCode.InvalidRequest,
       JSON.stringify({

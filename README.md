@@ -510,6 +510,33 @@ npm run test:watch
 npm run lint
 ```
 
+### Release Process
+
+Releases are created manually by maintainers using version tags. The CI/CD workflow automatically publishes to GitHub Packages when a version tag is pushed.
+
+To create a new release:
+
+1. **Update the version** in `package.json` (following [Semantic Versioning](https://semver.org/)):
+   ```bash
+   npm version patch  # for bug fixes (1.0.1 -> 1.0.2)
+   npm version minor  # for new features (1.0.0 -> 1.1.0)
+   npm version major  # for breaking changes (1.0.0 -> 2.0.0)
+   ```
+   This automatically creates a version commit and a git tag.
+
+2. **Push the tag** to trigger the publish workflow:
+   ```bash
+   git push --follow-tags
+   ```
+
+3. **Verify** the CI workflow completes and the package is published to GitHub Packages.
+
+You can also manually create a tag:
+```bash
+git tag -a v1.2.3 -m "Release v1.2.3"
+git push origin v1.2.3
+```
+
 ## License
 
 [GNU LGPLv3](./COPYING.LESSER)

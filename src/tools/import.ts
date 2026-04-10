@@ -72,14 +72,13 @@ export class RecipeImporter {
       const entityMap = entityMapResult.entityMap!;
 
       // Step 3: Convert to Tandoor format
-      const { payload, warnings, field_transformations } = convertSchemaOrgToTandoor(
+      const { payload, warnings, field_transformations, missingEntities } = convertSchemaOrgToTandoor(
         recipe,
         entityMap
       );
 
-      // Step 4: Validation - check all referenced entities exist
-      const missingEntities = this.validateEntitiesExist(payload, entityMap);
-      if (missingEntities.length > 0) {
+      // Step 4: Validation - check for missing entities from conversion
+      if (missingEntities.foods.length > 0 || missingEntities.units.length > 0 || missingEntities.keywords.length > 0) {
         return {
           recipe_id: -1,
           recipe_url: '',
@@ -87,9 +86,37 @@ export class RecipeImporter {
           mapping_notes: {
             field_transformations,
             ignored_fields: identifyIgnoredFields(recipe),
-            warnings: [...warnings, ...missingEntities],
+            warnings,
             error_code: MISSING_ENTITIES,
-            error_details: { missing: missingEntities }
+            error_details: {
+              missing: {
+                foods: missingEntities.foods,
+                units: missingEntities.units,
+                keywords: missingEntities.keywords
+              },
+              suggestions: [
+                ...missingEntities.foods.map(f => `Create food using: create_food(name: "${f}")`),
+                ...missingEntities.units.map(u => `Create unit using: create_unit(name: "${u}")`),
+                ...missingEntities.keywords.map(k => `Create keyword using: create_keyword(name: "${k}")`)
+              ]
+            }
+          }
+        };
+      }
+
+      // Additional validation - check all referenced entities in payload exist
+      const validationMissing = this.validateEntitiesExist(payload, entityMap);
+      if (validationMissing.length > 0) {
+        return {
+          recipe_id: -1,
+          recipe_url: '',
+          import_status: 'error',
+          mapping_notes: {
+            field_transformations,
+            ignored_fields: identifyIgnoredFields(recipe),
+            warnings,
+            error_code: MISSING_ENTITIES,
+            error_details: { missing: validationMissing }
           }
         };
       }

@@ -155,9 +155,9 @@ Set the environment variables `TANDOOR_BASE_URL` and `TANDOOR_API_TOKEN` before 
 
 ### `import_recipe_from_json`
 
-Imports a recipe from schema.org Recipe JSON format into Tandoor.
+Imports a recipe from [schema.org/Recipe](https://schema.org/Recipe) JSON format into Tandoor.
 
-**Input**: A JSON object with the following fields:
+**Input**: A JSON object with the following fields (see [schema compatibility](SCHEMA_COMPATIBILITY.md)):
 
 | Field | Required | Description |
 |-------|----------|-------------|
@@ -498,6 +498,8 @@ Make sure your API token is valid and has the necessary permissions in Tandoor.
 The importer will warn you if referenced ingredients, units, or keywords don't exist in Tandoor. You can either create them in Tandoor first, or use only ingredients and units that already exist.
 
 ## Development
+
+See the [architecture documentation](ARCHITECTURE.md) for a quick architectural overview.
 
 ```bash
 # Run tests

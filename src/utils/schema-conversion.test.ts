@@ -118,28 +118,31 @@ describe('convertSchemaOrgToTandoor', () => {
     expect(payload.ingredients[1].unit).toBe(2); // teaspoon
   });
 
-  it('should warn when food not found', () => {
+  it('should track missing food in missingEntities', () => {
+    // Using exact format: "1 [unit] [food]" to avoid parsing ambiguities
     const recipe: SchemaOrgRecipe = {
       name: 'Test',
-      recipeIngredient: ['500g unknown-ingredient'],
+      recipeIngredient: ['1 unknown-ingredient'],
       recipeInstructions: ['Cook']
     };
 
-    const { warnings } = convertSchemaOrgToTandoor(recipe, mockEntityMap);
+    const { missingEntities } = convertSchemaOrgToTandoor(recipe, mockEntityMap);
 
-    expect(warnings.some((w: string) => w.includes('not found'))).toBe(true);
+    expect(missingEntities.foods).toContain('unknown-ingredient');
+    // Warnings should NOT contain missing food - it's an error, not a warning
   });
 
-  it('should warn when food not found', () => {
+  it('should track missing food with amount in missingEntities', () => {
     const recipe: SchemaOrgRecipe = {
       name: 'Test',
-      recipeIngredient: ['500 unknownunit pasta'],
+      recipeIngredient: ['500 gram totally-unknown-food'],
       recipeInstructions: ['Cook']
     };
 
-    const { warnings } = convertSchemaOrgToTandoor(recipe, mockEntityMap);
+    const { missingEntities } = convertSchemaOrgToTandoor(recipe, mockEntityMap);
 
-    expect(warnings.some((w: string) => w.includes('not found'))).toBe(true);
+    // "gram" is a valid unit (id=1), so food name should be "totally-unknown-food"
+    expect(missingEntities.foods).toContain('totally-unknown-food');
   });
 
   it('should map keywords from array', () => {
@@ -214,7 +217,7 @@ describe('convertSchemaOrgToTandoor', () => {
     expect(italianCount).toBe(1); // Should deduplicate
   });
 
-  it('should warn about missing keywords', () => {
+  it('should track missing keywords in missingEntities', () => {
     const recipe: SchemaOrgRecipe = {
       name: 'Test',
       recipeIngredient: ['1 pasta'],
@@ -222,9 +225,11 @@ describe('convertSchemaOrgToTandoor', () => {
       keywords: ['UnknownKeyword']
     };
 
-    const { warnings } = convertSchemaOrgToTandoor(recipe, mockEntityMap);
+    const { missingEntities, warnings } = convertSchemaOrgToTandoor(recipe, mockEntityMap);
 
-    expect(warnings.some((w: string) => w.includes('UnknownKeyword'))).toBe(true);
+    // Missing keywords (explicitly provided) should be tracked as missing entities (error), not warnings
+    expect(missingEntities.keywords).toContain('UnknownKeyword');
+    expect(warnings.some((w: string) => w.includes('UnknownKeyword'))).toBe(false);
   });
 
   it('should parse ingredient amounts correctly', () => {
@@ -240,17 +245,20 @@ describe('convertSchemaOrgToTandoor', () => {
     expect(payload.ingredients[1].amount).toBe(100);
   });
 
-  it('should handle ingredients without amounts gracefully', () => {
+  it('should track missing foods in missingEntities when no amounts provided', () => {
     const recipe: SchemaOrgRecipe = {
       name: 'Test',
-      recipeIngredient: ['salt', 'pepper'],
+      recipeIngredient: ['cumin', 'paprika'],
       recipeInstructions: ['Cook']
     };
 
-    const { payload, warnings } = convertSchemaOrgToTandoor(recipe, mockEntityMap);
+    const { payload, missingEntities } = convertSchemaOrgToTandoor(recipe, mockEntityMap);
 
-    // Should warn about missing foods
-    expect(warnings.length).toBeGreaterThan(0);
+    // cumin and paprika don't exist in mockEntityMap, so they should be in missingEntities
+    expect(missingEntities.foods).toContain('cumin');
+    expect(missingEntities.foods).toContain('paprika');
+    // No ingredients should be in the payload since foods are missing
+    expect(payload.ingredients.length).toBe(0);
   });
 
   it('should convert instructions into ordered steps', () => {

@@ -129,7 +129,7 @@ describe('RecipeImporter', () => {
       expect(result.mapping_notes).toHaveProperty('error_code');
     });
 
-    it('should handle network failures gracefully', async () => {
+    it('should fail with missing_entities error when food list cannot be fetched', async () => {
       const failingMockClient = {
         ...mockClient,
         listAllFoods: jest.fn().mockRejectedValue(new Error('Network error'))
@@ -144,9 +144,10 @@ describe('RecipeImporter', () => {
 
       const result = await importer.importRecipeFromJson(recipe);
 
-      expect(result.import_status).toBe('success');
-      expect(result.mapping_notes).toHaveProperty('warnings');
-      expect(result.mapping_notes.warnings.length).toBeGreaterThan(0);
+      expect(result.import_status).toBe('error');
+      expect(result.mapping_notes.error_code).toBe('missing_entities');
+      // Should report missing food because it couldn't be verified against empty/failed fetch
+      expect(result.mapping_notes.error_details.missing.foods).toContain('spaghetti');
     });
 
     it('should track ignored fields', async () => {
@@ -174,6 +175,23 @@ describe('RecipeImporter', () => {
 
       expect(result.import_status).toBe('success');
       // The test passes if no errors, meaning ingredients were parsed correctly
+    });
+
+    it('should fail with missing_entities error when food does not exist', async () => {
+      const recipe: SchemaOrgRecipe = {
+        name: 'Unknown Food Recipe',
+        recipeIngredient: ['1 unknownfood123'],
+        recipeInstructions: ['Cook']
+      };
+
+      const result = await importer.importRecipeFromJson(recipe);
+
+      expect(result.import_status).toBe('error');
+      expect(result.mapping_notes.error_code).toBe('missing_entities');
+      expect(result.mapping_notes.error_details.missing.foods).toContain('unknownfood123');
+      // Warnings should NOT contain the missing food message - it's an error, not a warning
+      const foodWarning = result.mapping_notes.warnings.find(w => w.includes('unknownfood123'));
+      expect(foodWarning).toBeUndefined();
     });
   });
 });

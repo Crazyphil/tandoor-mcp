@@ -119,6 +119,12 @@ export function parseInstructions(
   return { steps, warnings };
 }
 
+interface MissingEntities {
+  foods: string[];
+  units: string[];
+  keywords: string[];
+}
+
 /**
  * Convert schema.org Recipe to Tandoor recipe payload
  * Note: This does NOT validate or fetch entities from Tandoor
@@ -131,7 +137,7 @@ export function convertSchemaOrgToTandoor(
     unitIdMap: Map<string, number>;
     keywordIdMap: Map<string, number>;
   }
-): { payload: TandoorRecipePayload; warnings: string[]; field_transformations: string[] } {
+): { payload: TandoorRecipePayload; warnings: string[]; field_transformations: string[]; missingEntities: MissingEntities } {
   const warnings: string[] = [];
   const field_transformations: string[] = [];
 
@@ -169,14 +175,21 @@ export function convertSchemaOrgToTandoor(
   warnings.push(...instructionWarnings);
 
   // Handle ingredients
-  const { ingredients, warnings: ingredientWarnings } = parseIngredients(
+  const { ingredients, warnings: ingredientWarnings, missingEntities: missingIngredientEntities } = parseIngredients(
     recipe.recipeIngredient || [],
     entityMap
   );
   payload.ingredients = ingredients;
   warnings.push(...ingredientWarnings);
 
-  // Handle keywords
+  // Track all missing entities
+  const missingEntities: MissingEntities = {
+    foods: [...missingIngredientEntities.foods],
+    units: [...missingIngredientEntities.units],
+    keywords: []
+  };
+
+  // Handle keywords (explicitly provided by agent - treat as error if missing)
   const keywordIds: number[] = [];
   if (recipe.keywords && Array.isArray(recipe.keywords)) {
     for (const keyword of recipe.keywords) {
@@ -185,7 +198,7 @@ export function convertSchemaOrgToTandoor(
         keywordIds.push(id);
         field_transformations.push(`keyword '${keyword}' mapped to ID ${id}`);
       } else {
-        warnings.push(`Keyword '${keyword}' not found in Tandoor. Use list_all_keywords() to see exact names.`);
+        missingEntities.keywords.push(keyword);
       }
     }
   }
@@ -222,7 +235,7 @@ export function convertSchemaOrgToTandoor(
     payload.keywords = [...new Set(keywordIds)]; // Remove duplicates
   }
 
-  return { payload, warnings, field_transformations };
+  return { payload, warnings, field_transformations, missingEntities };
 }
 
 /**
@@ -235,8 +248,9 @@ function parseIngredients(
     unitIdMap: Map<string, number>;
     keywordIdMap: Map<string, number>;
   }
-): { ingredients: TandoorIngredient[]; warnings: string[] } {
+): { ingredients: TandoorIngredient[]; warnings: string[]; missingEntities: MissingEntities } {
   const warnings: string[] = [];
+  const missingEntities: MissingEntities = { foods: [], units: [], keywords: [] };
   const tandoorIngredients: TandoorIngredient[] = [];
 
   ingredients.forEach((ingredientStr, index) => {
@@ -307,10 +321,8 @@ function parseIngredients(
     }
 
     if (foodId === undefined) {
-      warnings.push(
-        `Food '${foodName}' not found in Tandoor for ingredient: "${ingredientStr}". ` +
-        `Use list_all_foods() to see exact names. Ensure you're using the exact name as it appears in the database.`
-      );
+      missingEntities.foods.push(foodName);
+      // Not adding to warnings - this is an error, reported via missingEntities
       return;
     }
 
@@ -323,7 +335,7 @@ function parseIngredients(
     });
   });
 
-  return { ingredients: tandoorIngredients, warnings };
+  return { ingredients: tandoorIngredients, warnings, missingEntities };
 }
 
 /**

@@ -29,6 +29,8 @@ export interface SchemaOrgRecipe {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any;
   };
+  /** Dietary restrictions (e.g., 'GlutenFreeDiet', 'VeganDiet', 'VegetarianDiet') */
+  suitableForDiet?: string | string[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
 }
@@ -43,17 +45,20 @@ export interface TandoorRecipePayload {
   name: string;
   description?: string;
   servings?: number;
+  servings_text?: string; // e.g., "servings", "cups", "loaves"
   source_url?: string;
   internal: boolean;
   steps: TandoorStep[];
   ingredients: TandoorIngredient[];
   keywords?: number[];
+  nutrition?: Record<string, unknown>;
+  working_time?: number; // prep time in minutes
+  waiting_time?: number; // cooking/waiting time in minutes
 }
 
 export interface TandoorStep {
   name?: string;
   instruction: string;
-  time?: number;
   order: number;
   ingredients: TandoorIngredient[];
 }

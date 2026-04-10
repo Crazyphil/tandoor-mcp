@@ -81,31 +81,34 @@ export function parseInstructions(
   const warnings: string[] = [];
   const steps: TandoorStep[] = [];
 
-  let instructionList: string[] = [];
+  let instructionList: { text: string; name?: string }[] = [];
 
   if (typeof instructions === 'string') {
     // Simple string - split by period or newline
-    instructionList = instructions
+    const rawInstructions = instructions
       .split(/\n|\./)
       .map(s => s.trim())
       .filter(s => s.length > 0);
+    instructionList = rawInstructions.map(text => ({ text }));
   } else if (Array.isArray(instructions)) {
     for (const instr of instructions) {
       if (typeof instr === 'string') {
-        instructionList.push(instr);
+        instructionList.push({ text: instr });
       } else if (typeof instr === 'object' && instr.text) {
-        instructionList.push(instr.text);
+        instructionList.push({ text: instr.text, name: instr.name });
       } else if (typeof instr === 'object' && instr.name) {
-        instructionList.push(instr.name);
+        // Only name field, use as instruction text
+        instructionList.push({ text: instr.name, name: instr.name });
       }
     }
   }
 
   // Convert to steps
-  instructionList.forEach((instruction, index) => {
-    if (instruction.trim().length > 0) {
+  instructionList.forEach((item, index) => {
+    if (item.text.trim().length > 0) {
       steps.push({
-        instruction: instruction.trim(),
+        name: item.name,
+        instruction: item.text.trim(),
         order: index,
         ingredients: [] // Will be filled in during ingredient mapping
       });
@@ -117,6 +120,31 @@ export function parseInstructions(
   }
 
   return { steps, warnings };
+}
+
+/**
+ * Append author attribution as an italicized Markdown paragraph to the last step's instruction.
+ * This keeps the recipe description clean while still crediting the original author.
+ */
+function appendAuthorToSteps(steps: TandoorStep[], authorName: string): TandoorStep[] {
+  if (steps.length === 0 || !authorName) {
+    return steps;
+  }
+
+  const lastIndex = steps.length - 1;
+  const lastStep = steps[lastIndex];
+  
+  // Append author as italicized paragraph
+  const authorAttribution = `\n\n*${authorName}*`;
+  const updatedStep: TandoorStep = {
+    ...lastStep,
+    instruction: lastStep.instruction + authorAttribution
+  };
+
+  return [
+    ...steps.slice(0, lastIndex),
+    updatedStep
+  ];
 }
 
 interface MissingEntities {
@@ -141,7 +169,6 @@ export function convertSchemaOrgToTandoor(
   const warnings: string[] = [];
   const field_transformations: string[] = [];
 
-  // Parse basic fields
   const payload: TandoorRecipePayload = {
     name: recipe.name,
     description: recipe.description || '',
@@ -155,10 +182,31 @@ export function convertSchemaOrgToTandoor(
     payload.servings = recipe.servings;
     field_transformations.push(`servings set to ${recipe.servings}`);
   } else if (recipe.recipeYield) {
-    const yieldNum = parseInt(recipe.recipeYield.toString(), 10);
-    if (!isNaN(yieldNum)) {
-      payload.servings = yieldNum;
-      field_transformations.push(`servings derived from recipeYield: ${recipe.recipeYield}`);
+    if (typeof recipe.recipeYield === 'number') {
+      // If recipeYield is a number, use it directly
+      payload.servings = recipe.recipeYield;
+      field_transformations.push(`servings set from recipeYield: ${recipe.recipeYield}`);
+    } else if (typeof recipe.recipeYield === 'string') {
+      // Parse string format: extract number and text parts
+      // Examples: "4 servings" -> servings: 4, servings_text: "servings"
+      //           "2 loaves" -> servings: 2, servings_text: "loaves"
+      //           "6" -> servings: 6, no servings_text
+      const yieldStr = recipe.recipeYield.trim();
+      const match = yieldStr.match(/^(\d+(?:\.\d+)?)\s*(.*)$/);
+      
+      if (match) {
+        const numValue = parseFloat(match[1]);
+        if (!isNaN(numValue)) {
+          payload.servings = numValue;
+          const textPart = match[2].trim();
+          if (textPart) {
+            payload.servings_text = textPart;
+            field_transformations.push(`servings (${numValue}) and servings_text ('${textPart}') derived from recipeYield: '${recipe.recipeYield}'`);
+          } else {
+            field_transformations.push(`servings (${numValue}) derived from recipeYield: '${recipe.recipeYield}'`);
+          }
+        }
+      }
     }
   }
 
@@ -167,11 +215,55 @@ export function convertSchemaOrgToTandoor(
     payload.source_url = recipe.sourceUrl;
   }
 
+  // Handle time fields - map to Tandoor's recipe-level time fields
+  // prepTime -> working_time (active preparation time)
+  // cookTime -> waiting_time (cooking/waiting time)
+  if (recipe.prepTime) {
+    const prepMinutes = parseIsoDuration(recipe.prepTime);
+    if (prepMinutes !== null) {
+      payload.working_time = prepMinutes;
+      field_transformations.push(`prepTime (${prepMinutes} min) mapped to working_time`);
+    }
+  }
+  
+  if (recipe.cookTime) {
+    const cookMinutes = parseIsoDuration(recipe.cookTime);
+    if (cookMinutes !== null) {
+      payload.waiting_time = cookMinutes;
+      field_transformations.push(`cookTime (${cookMinutes} min) mapped to waiting_time`);
+    }
+  }
+  
+  // totalTime is informational - validate it equals prep + cook or just note it
+  if (recipe.totalTime) {
+    const totalMinutes = parseIsoDuration(recipe.totalTime);
+    if (totalMinutes !== null) {
+      const prepMinutes = payload.working_time || 0;
+      const cookMinutes = payload.waiting_time || 0;
+      if (totalMinutes !== prepMinutes + cookMinutes) {
+        field_transformations.push(`totalTime (${totalMinutes} min) differs from prep + cook time sum (${prepMinutes + cookMinutes} min)`);
+      }
+    }
+  }
+
   // Handle instructions
   const { steps: instructionSteps, warnings: instructionWarnings } = parseInstructions(
     recipe.recipeInstructions || []
   );
-  payload.steps = instructionSteps;
+  
+  // Apply author attribution to last step if present
+  let finalSteps = instructionSteps;
+  if (recipe.author?.name) {
+    finalSteps = appendAuthorToSteps(instructionSteps, recipe.author.name);
+    field_transformations.push(`author '${recipe.author.name}' appended to last step as italicized attribution`);
+  }
+  
+  // Add warning for datePublished if present
+  if (recipe.datePublished) {
+    warnings.push(`datePublished ('${recipe.datePublished}') not supported by Tandoor and has been ignored`);
+  }
+  
+  payload.steps = finalSteps;
   warnings.push(...instructionWarnings);
 
   // Handle ingredients
@@ -181,6 +273,12 @@ export function convertSchemaOrgToTandoor(
   );
   payload.ingredients = ingredients;
   warnings.push(...ingredientWarnings);
+
+  // Handle nutrition - map to Tandoor's nutrition JSON field
+  if (recipe.nutrition && typeof recipe.nutrition === 'object') {
+    payload.nutrition = recipe.nutrition;
+    field_transformations.push('nutrition information included in recipe');
+  }
 
   // Track all missing entities
   const missingEntities: MissingEntities = {
@@ -226,6 +324,38 @@ export function convertSchemaOrgToTandoor(
           field_transformations.push(`recipeCuisine '${cuisine}' mapped to keyword ID ${id}`);
         } else {
           warnings.push(`recipeCuisine '${cuisine}' not found. Use list_all_keywords() to see exact names; consider creating keyword if needed.`);
+        }
+      }
+    }
+  }
+
+  // Handle suitableForDiet - map to keywords if they exist
+  if (recipe.suitableForDiet) {
+    const diets = Array.isArray(recipe.suitableForDiet)
+      ? recipe.suitableForDiet
+      : [recipe.suitableForDiet];
+
+    for (const diet of diets) {
+      if (typeof diet === 'string') {
+        // Convert diet value to a more readable keyword name
+        // e.g., "GlutenFreeDiet" -> "gluten free", "VeganDiet" -> "vegan"
+        const dietKeyword = diet
+          .replace(/Diet$/, '') // Remove 'Diet' suffix
+          .replace(/([A-Z])/g, ' $1') // Insert space before capitals
+          .trim()
+          .toLowerCase();
+        
+        // Try exact match first, then try the transformed version
+        let id = entityMap.keywordIdMap.get(diet.toLowerCase());
+        if (id === undefined && dietKeyword) {
+          id = entityMap.keywordIdMap.get(dietKeyword);
+        }
+        
+        if (id !== undefined) {
+          keywordIds.push(id);
+          field_transformations.push(`suitableForDiet '${diet}' mapped to keyword ID ${id}`);
+        } else {
+          warnings.push(`suitableForDiet '${diet}' not found. Consider creating keyword '${dietKeyword}' if needed.`);
         }
       }
     }
@@ -361,6 +491,7 @@ export function identifyIgnoredFields(recipe: SchemaOrgRecipe): string[] {
     'author',
     'datePublished',
     'nutrition',
+    'suitableForDiet',
     '@context',
     '@type'
   ]);

@@ -19,8 +19,8 @@ This document maps schema.org/Recipe fields to Tandoor's data model, documenting
 | `name` | `Recipe.name` | ✅ | Direct string mapping. Required field. |
 | `description` | `Recipe.description` | ✅ | Direct string mapping. Optional. |
 | `recipeIngredient` | `Ingredient` (via `steps[].ingredients`) | ✅ | Parsed into structured `{amount, unit, food, note}`. See [Ingredient Parsing](#ingredient-parsing). |
-| `recipeInstructions` | `Step` objects | 📝 | String array: split into ordered steps. `HowToStep` objects: `text` extracted. `HowToSection` (nested): ⚠️ NOT IMPLEMENTED - flattened. |
-| `recipeYield` | `Recipe.servings` | 🔀 | Parsed to integer. Original value lost. |
+| `recipeInstructions` | `Step` objects | 📝 | String array: split into ordered steps. `HowToStep` objects: `text` → `instruction`, `name` → `name`. `HowToSection` (nested): ⚠️ NOT IMPLEMENTED - flattened. |
+| `recipeYield` | `Recipe.servings` + `Recipe.servings_text` | 🔀 | If number: stored as `servings`. If string: number extracted as `servings`, remainder as `servings_text` (e.g., "4 servings" → servings: 4, servings_text: "servings"; "2 loaves" → servings: 2, servings_text: "loaves"). |
 | `servings` | `Recipe.servings` | ✅ | Direct integer mapping. Preferred over `recipeYield`. |
 
 ## Categorization & Metadata
@@ -30,6 +30,7 @@ This document maps schema.org/Recipe fields to Tandoor's data model, documenting
 | `keywords` | `Recipe.keywords` | ✅ | Mapped by name lookup. **Error if keyword not found** (must exist in Tandoor). |
 | `recipeCategory` | `Recipe.keywords` | 🔀 | Mapped to keyword if exists. **Warning if not found** (optional mapping). |
 | `recipeCuisine` | `Recipe.keywords` | 🔀 | Mapped to keyword if exists. **Warning if not found** (optional mapping). |
+| `suitableForDiet` | `Recipe.keywords` | 🔀 | Mapped to keyword if exists. Normalized from Schema.org values (e.g., "GlutenFreeDiet" → "gluten free"). **Warning if not found** (optional mapping). |
 
 ## Media & References
 
@@ -37,31 +38,30 @@ This document maps schema.org/Recipe fields to Tandoor's data model, documenting
 |------------------|---------------|--------|------------------------|
 | `image` | `Recipe.image` | ✅ | URL or base64 uploaded via `PUT /api/recipe/{id}/image/`. |
 | `url` / `sourceUrl` | `Recipe.source_url` | ✅ | Direct string mapping. Used for duplicate detection. |
-| `author` | ❌ | ❌ | Not stored. Listed in `ignored_fields` response. |
-| `datePublished` | ❌ | ❌ | Not stored. Listed in `ignored_fields` response. |
+| `author` | `Step.instruction` | 🔀 | Author name appended to last step in Markdown italics: `*Author Name*` |
 
 ## Time & Duration
 
 | Schema.org Field | Tandoor Field | Status | Implementation Details |
 |------------------|---------------|--------|------------------------|
-| `prepTime` | `Step.time` | ⚠️ | Spec: "distributed to step times". Parser exists (`parseIsoDuration`) but **never applied**. Currently ignored. |
-| `cookTime` | `Step.time` | ⚠️ | Spec: "distributed to step times". Parser exists but **never applied**. Currently ignored. |
-| `totalTime` | `Step.time` | ⚠️ | Spec: "aggregated or distributed". Parser exists but **never applied**. Currently ignored. |
+| `prepTime` | `Recipe.working_time` | ✅ | Active preparation time. `parseIsoDuration` converts ISO 8601 to minutes. Mapped to recipe-level field (not per-step). |
+| `cookTime` | `Recipe.waiting_time` | ✅ | Cooking/waiting time. `parseIsoDuration` converts ISO 8601 to minutes. Mapped to recipe-level field (not per-step). |
+| `totalTime` | N/A | 📝 | Informational only. Validated against `prepTime` + `cookTime`; noted if differs from sum. |
 
 ## Nutrition
 
 | Schema.org Field | Tandoor Field | Status | Implementation Details |
 |------------------|---------------|--------|------------------------|
-| `nutrition` | `Recipe.nutrition` | ⚠️ | Spec: "stored as Recipe.nutrition object (Tandoor JSON field)". **NOT IMPLEMENTED**. Currently ignored. |
+| `nutrition` | `Recipe.nutrition` | ✅ | Direct JSON mapping to Tandoor's nutrition field. All nutrition properties preserved (calories, protein, fat, etc.). |
 
 ## Ignored Fields (Tandoor Has No Concept)
 
 These fields are recognized but cannot be imported. They appear in `mapping_notes.ignored_fields`:
 
+- `datePublished` - No publishing date field in Tandoor
 - `estimatedCost` - No cost field in Tandoor
 - `aggregateRating` - No rating storage in Tandoor
 - `review` - No review concept
-- `suitableForDiet` - No diet field (could map to keywords)
 - `tool` - No equipment/tools field
 - `supply` - No supplies field
 - `recipeInstructions` → `HowToSection` (nested sections) - Tandoor has flat steps only
@@ -97,70 +97,54 @@ Schema.org `recipeIngredient` is an array of strings in format:
 
 ## Time Duration Parsing
 
-The `parseIsoDuration()` function exists and handles ISO 8601 durations:
+The `parseIsoDuration()` function handles ISO 8601 durations and maps them to recipe-level time fields:
 
-| Input | Output (minutes) |
-|-------|------------------|
-| `PT30M` | 30 |
-| `PT1H` | 60 |
-| `PT1H30M` | 90 |
-| `PT45S` | 1 (rounded) |
+| Input | Output (minutes) | Tandoor Field |
+|-------|------------------|---------------|
+| `PT30M` | 30 | `working_time` (prep) or `waiting_time` (cook) |
+| `PT1H` | 60 | `working_time` (prep) or `waiting_time` (cook) |
+| `PT1H30M` | 90 | `working_time` (prep) or `waiting_time` (cook) |
+| `PT45S` | 1 (rounded) | `working_time` (prep) or `waiting_time` (cook) |
 
-**Status**: Parser implemented but **never applied** to `Step.time` field during import.
+**Status**: ✅ Parser implemented and applied to `Recipe.working_time` (from `prepTime`) and `Recipe.waiting_time` (from `cookTime`).
 
 ---
 
-## Implementation Gaps
+## Implementation Status
 
-### 1. Time Fields (High Priority)
-**Spec Requirement**: `prepTime`, `cookTime`, `totalTime` → `Step.time`
+### Time Fields ✅ IMPLEMENTED
+**Mapping**: `prepTime` → `Recipe.working_time`, `cookTime` → `Recipe.waiting_time`
 
-**Current State**: 
-- ✅ Parser exists: `parseIsoDuration()`
-- ❌ Never applied to payload
-- ❌ Listed as "known field" but actually ignored
+**Implementation**:
+- ✅ `parseIsoDuration()` converts ISO 8601 durations to minutes
+- ✅ `prepTime`: Mapped to `working_time` (active preparation time)
+- ✅ `cookTime`: Mapped to `waiting_time` (cooking/waiting time)
+- 📝 `totalTime`: Validated against sum of prep + cook; noted in transformations if different
 
-**Proposed Implementation**:
-- Distribute `prepTime` to first step(s)
-- Distribute `cookTime` to cooking step(s) (heuristic: look for "cook", "bake", "simmer")
-- Use `totalTime` as fallback or validation
+### Nutrition Information ✅ IMPLEMENTED
+**Mapping**: `nutrition` → `Recipe.nutrition` JSON field
 
-### 2. Nutrition Information (Medium Priority)
-**Spec Requirement**: `nutrition` → `Recipe.nutrition` JSON field
+**Implementation**:
+- ✅ All nutrition properties stored as JSON object in Tandoor's `nutrition` field
+- ✅ Common fields like `calories`, `proteinContent`, `fatContent`, `carbohydrateContent` preserved
 
+### Author & Diet Fields ✅ IMPLEMENTED
+**Author Mapping**: `author.name` → appended to last step's instruction in Markdown italics (`*Author Name*`)
+
+**Diet Mapping**: `suitableForDiet` → `Recipe.keywords`
+- Schema.org values normalized (e.g., "GlutenFreeDiet" → "gluten free")
+- Mapped to keyword if exists; warning if not found
+
+**datePublished**: 📝 Not supported by Tandoor - warning generated if field has value
+
+### Recipe Instructions Structure ✅ MOSTLY IMPLEMENTED
 **Current State**:
-- ❌ Not implemented
-- ❌ No `nutrition` field in `TandoorRecipePayload` type
+- ✅ `string[]`: Split by periods/newlines into ordered steps
+- ✅ `HowToStep` with `text`: Extracted as `Step.instruction`
+- ✅ `HowToStep` with `name`: Mapped to `Step.name`
+- ❌ `HowToSection`: Nested sections are flattened (structure lost)
 
-**Tandoor Support**: Tandoor has a `nutrition` JSON field that can store arbitrary nutrition data.
-
-**Proposed Implementation**:
-- Map common fields: `calories`, `carbohydrateContent`, `proteinContent`, `fatContent`
-- Store as JSON object in `nutrition` field
-
-### 3. Author & Date (Low Priority)
-**Spec Requirement**: `author`, `datePublished` → metadata or `source_url`
-
-**Current State**:
-- ❌ Ignored completely
-- ❌ Not stored anywhere
-
-**Proposed Implementation**:
-- Append author name to `description`: `"By [author]. [original description]"`
-- Or append to `source_url` as query param (less ideal)
-
-### 4. Recipe Instructions with Structure
-**Current State**:
-- ✅ `string[]`: Split by periods/newlines
-- ✅ `HowToStep` with `text`: Extracted
-- ❌ `HowToStep` with `name`: Ignored (could map to `Step.name`)
-- ❌ `HowToSection`: Flattened (nested structure lost)
-
-**Tandoor Support**: Steps have `name` and `instruction` fields.
-
-**Proposed Implementation**:
-- Map `HowToStep.name` to `Step.name`
-- For `HowToSection`: Create header step or prepend section name to instructions
+**Tandoor Support**: Steps have `name` and `instruction` fields; no nested section support.
 
 ---
 
@@ -177,7 +161,7 @@ The `parseIsoDuration()` function exists and handles ISO 8601 durations:
     "field_transformations": [
       "servings derived from recipeYield: 4 servings"
     ],
-    "ignored_fields": ["estimatedCost", "aggregateRating", "author"],
+    "ignored_fields": ["estimatedCost", "aggregateRating", "datePublished"],
     "warnings": [
       "recipeCategory 'Main Dish' not found. Use list_all_keywords() to see exact names; consider creating keyword if needed."
     ]
@@ -227,6 +211,7 @@ interface SchemaOrgRecipe {
   keywords?: string[];
   recipeCategory?: string;
   recipeCuisine?: string | string[];
+  suitableForDiet?: string;
   
   // Media & References
   image?: string | string[];
@@ -251,15 +236,7 @@ interface SchemaOrgRecipe {
   estimatedCost?: unknown;
   aggregateRating?: unknown;
   review?: unknown;
-  suitableForDiet?: unknown;
   tool?: unknown;
   supply?: unknown;
 }
 ```
-
----
-
-## Version History
-
-- **Current**: Initial compatibility matrix based on implementation analysis
-- **Last Updated**: 2026-04-10

@@ -81,6 +81,10 @@ export function createFoodToolHandlers(client: TandoorApiClient): FoodToolHandle
 
   /**
    * Create a new food in Tandoor
+   *
+   * Per MCP spec: First checks if food already exists by name (case-insensitive).
+   * If it exists, returns entity_already_exists error with the existing entity info.
+   * If not, creates the new food.
    */
   const create = async (
     args: { name: string; plural_name?: string },
@@ -97,10 +101,23 @@ export function createFoodToolHandlers(client: TandoorApiClient): FoodToolHandle
     }
 
     try {
+      // Per spec: MUST check for existence first by searching
+      const existingFoods = await client.searchFood(name);
+      const normalizedName = name.trim().toLowerCase();
+      const existingFood = existingFoods.find(
+        f => f.name.toLowerCase() === normalizedName
+      );
+
+      if (existingFood) {
+        // Entity already exists - return error with existing entity info
+        throw createEntityExistsError('food', name, existingFood.id);
+      }
+
+      // Entity doesn't exist - create it
       const result = await client.createFood(name, plural_name);
       return createJsonResponse(result);
     } catch (error) {
-      // Check for 409 Conflict specifically to provide helpful error message
+      // Handle 409 Conflict if Tandoor returns it in the future
       if (isAxiosError(error) && error.response?.status === HTTP_CONFLICT) {
         throw createEntityExistsError('food', name);
       }

@@ -104,6 +104,7 @@ Auth: token query or header (e.g., `Authorization: Token <token>`)
 - Input: food name and optional plural form.
 - Behavior: POST `/api/food/` with `{ name, plural_name }`. Return created food object.
 - **Constraint**: Agent MUST check for existence first using `search_food()` or `list_all_foods()`. If the food already exists, return `error_code: entity_already_exists`.
+- **Important**: Food names must be used exactly as they appear in the database (case-insensitive match). Use `list_all_foods()` to see available foods and their exact names before creating or referencing them in recipes.
 - Note: Food substitutes are managed separately in Tandoor UI; agent should not set them during creation.
 
 ### Tool E: `list_all_units()` (agent-facing)
@@ -122,6 +123,7 @@ Auth: token query or header (e.g., `Authorization: Token <token>`)
 - Input: unit name.
 - Behavior: POST `/api/unit/` with `{ name }`. Return created unit object.
 - **Constraint**: Agent MUST check for existence first using `search_unit()` or `list_all_units()`. If the unit already exists, return `error_code: entity_already_exists`.
+- **Important**: Unit names must be used exactly as they appear in the database (case-insensitive match). Use `list_all_units()` to see available units and their exact names before creating or referencing them in recipes.
 
 ### Tool H: `list_all_keywords()` (agent-facing)
 - Input: none (optional `page`, `page_size` for pagination).
@@ -139,6 +141,7 @@ Auth: token query or header (e.g., `Authorization: Token <token>`)
 - Input: keyword name.
 - Behavior: POST `/api/keyword/` with `{ name }`. Return created keyword object.
 - **Constraint**: Agent MUST check for existence first using `search_keyword()` or `list_all_keywords()`. If the keyword already exists, return `error_code: entity_already_exists`.
+- **Important**: Keyword names must be used exactly as they appear in the database (case-insensitive match). Use `list_all_keywords()` to see available keywords and their exact names before creating or referencing them in recipes.
 
 ### Tool K: `search_recipes(query_params)` (agent-facing)
 - Input: object with optional search parameters (mimicking Tandoor's advanced search):

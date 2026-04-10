@@ -185,7 +185,7 @@ export function convertSchemaOrgToTandoor(
         keywordIds.push(id);
         field_transformations.push(`keyword '${keyword}' mapped to ID ${id}`);
       } else {
-        warnings.push(`Keyword '${keyword}' not found in Tandoor`);
+        warnings.push(`Keyword '${keyword}' not found in Tandoor. Use list_all_keywords() to see exact names.`);
       }
     }
   }
@@ -196,7 +196,7 @@ export function convertSchemaOrgToTandoor(
       keywordIds.push(id);
       field_transformations.push(`recipeCategory '${recipe.recipeCategory}' mapped to keyword ID ${id}`);
     } else {
-      warnings.push(`recipeCategory '${recipe.recipeCategory}' not found; consider creating keyword`);
+      warnings.push(`recipeCategory '${recipe.recipeCategory}' not found. Use list_all_keywords() to see exact names; consider creating keyword if needed.`);
     }
   }
 
@@ -212,7 +212,7 @@ export function convertSchemaOrgToTandoor(
           keywordIds.push(id);
           field_transformations.push(`recipeCuisine '${cuisine}' mapped to keyword ID ${id}`);
         } else {
-          warnings.push(`recipeCuisine '${cuisine}' not found; consider creating keyword`);
+          warnings.push(`recipeCuisine '${cuisine}' not found. Use list_all_keywords() to see exact names; consider creating keyword if needed.`);
         }
       }
     }
@@ -307,7 +307,10 @@ function parseIngredients(
     }
 
     if (foodId === undefined) {
-      warnings.push(`Food '${foodName}' not found in Tandoor for ingredient: "${ingredientStr}"`);
+      warnings.push(
+        `Food '${foodName}' not found in Tandoor for ingredient: "${ingredientStr}". ` +
+        `Use list_all_foods() to see exact names. Ensure you're using the exact name as it appears in the database.`
+      );
       return;
     }
 

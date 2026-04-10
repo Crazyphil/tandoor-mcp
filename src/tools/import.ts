@@ -3,7 +3,8 @@ import {
   ImportResult,
   TandoorFood,
   TandoorUnit,
-  TandoorKeyword
+  TandoorKeyword,
+  TandoorRecipePayload
 } from '../types';
 import { TandoorApiClient } from '../api/client';
 import {
@@ -13,6 +14,7 @@ import {
 } from '../utils/normalize';
 import {
   MISSING_ENTITIES,
+  DUPLICATE_RECIPE,
   API_SCHEMA_MISMATCH,
   UNEXPECTED_ERROR,
   ENTITY_FETCH_PAGE_SIZE
@@ -92,7 +94,28 @@ export class RecipeImporter {
         };
       }
 
-      // Step 5: Create recipe in Tandoor
+      // Step 5: Check for duplicate recipes (by name and source_url)
+      const duplicateCheck = await this.checkForDuplicate(recipe, payload);
+      if (duplicateCheck.isDuplicate) {
+        return {
+          recipe_id: duplicateCheck.existingRecipeId ?? -1,
+          recipe_url: duplicateCheck.existingRecipeUrl ?? '',
+          import_status: 'error',
+          mapping_notes: {
+            field_transformations,
+            ignored_fields: identifyIgnoredFields(recipe),
+            warnings: [`Recipe appears to be a duplicate of existing recipe (ID: ${duplicateCheck.existingRecipeId})`],
+            error_code: DUPLICATE_RECIPE,
+            error_details: {
+              existing_recipe_id: duplicateCheck.existingRecipeId,
+              existing_recipe_url: duplicateCheck.existingRecipeUrl,
+              match_reason: duplicateCheck.matchReason
+            }
+          }
+        };
+      }
+
+      // Step 6: Create recipe in Tandoor
       let recipeId: number;
       try {
         const createdRecipe = await this.client.createRecipe(payload);
@@ -115,7 +138,7 @@ export class RecipeImporter {
 
       const recipeUrl = `${this.client['client'].defaults.baseURL}/recipe/${recipeId}/`;
 
-      // Step 6: Upload image if available
+      // Step 7: Upload image if available
       let imageStatus: 'uploaded' | 'failed' | 'not_provided' = 'not_provided';
       if (recipe.image) {
         imageStatus = await this.uploadImage(recipeId, recipe.image);
@@ -313,6 +336,90 @@ export class RecipeImporter {
     }
 
     return missing;
+  }
+
+  /**
+   * Check if a recipe with the same name or source_url already exists
+   * Per MCP spec: deduplicate by name, source_url, and normalized ingredient set
+   */
+  private async checkForDuplicate(
+    recipe: SchemaOrgRecipe,
+    payload: TandoorRecipePayload
+  ): Promise<{
+    isDuplicate: boolean;
+    existingRecipeId?: number;
+    existingRecipeUrl?: string;
+    matchReason?: string;
+  }> {
+    try {
+      // Build search query: prefer source_url if available, otherwise use name
+      const searchQuery = recipe.sourceUrl || recipe.name;
+      
+      // Search for existing recipes by name (using query param which searches in name and description)
+      const searchResult = await this.client.searchRecipes({
+        query: searchQuery,
+        page: 1,
+        page_size: 50
+      });
+
+      // If no results, no duplicate
+      if (searchResult.results.length === 0) {
+        return { isDuplicate: false };
+      }
+
+      // Normalize the new recipe's ingredients for comparison (sorted food IDs)
+      const newIngredients = payload.ingredients
+        .map(i => i.food)
+        .sort((a, b) => a - b)
+        .join(',');
+
+      // Check each candidate for duplicate criteria
+      for (const existingRecipe of searchResult.results) {
+        // Criterion 1: Exact source_url match (strongest indicator of duplicate)
+        if (recipe.sourceUrl && existingRecipe.source_url === recipe.sourceUrl) {
+          return {
+            isDuplicate: true,
+            existingRecipeId: existingRecipe.id,
+            existingRecipeUrl: `${this.client['client'].defaults.baseURL}/recipe/${existingRecipe.id}/`,
+            matchReason: 'source_url'
+          };
+        }
+
+        // Criterion 2: Same name + same ingredient set
+        if (existingRecipe.name.toLowerCase() === recipe.name.toLowerCase()) {
+          // Need to fetch full recipe to compare ingredients
+          try {
+            const fullRecipe = await this.client.getRecipe(existingRecipe.id);
+            
+            // Build sorted ingredient list from existing recipe
+            const existingIngredients = (fullRecipe.steps || [])
+              .flatMap(s => s.ingredients || [])
+              .map(i => i.food)
+              .sort((a, b) => a - b)
+              .join(',');
+
+            if (existingIngredients === newIngredients) {
+              return {
+                isDuplicate: true,
+                existingRecipeId: existingRecipe.id,
+                existingRecipeUrl: `${this.client['client'].defaults.baseURL}/recipe/${existingRecipe.id}/`,
+                matchReason: 'name_and_ingredients'
+              };
+            }
+          } catch {
+            // Failed to fetch full recipe, skip ingredient comparison
+            continue;
+          }
+        }
+      }
+
+      // No duplicate found
+      return { isDuplicate: false };
+    } catch {
+      // If duplicate check fails, allow the import to proceed
+      // Better to have a potential duplicate than block valid imports
+      return { isDuplicate: false };
+    }
   }
 
   /**

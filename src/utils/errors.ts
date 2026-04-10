@@ -122,28 +122,42 @@ export function handleApiError(
  *
  * @param entityType - Type of entity (e.g., 'food', 'unit', 'keyword')
  * @param entityName - Name of the entity that already exists
+ * @param existingId - Optional ID of the existing entity if known
  * @returns McpError with structured error details and suggestions
  */
 export function createEntityExistsError(
   entityType: string,
-  entityName: string
+  entityName: string,
+  existingId?: number
 ): McpError {
   const searchTool = `search_${entityType}`;
   const listTool = `list_all_${entityType}s`;
+
+  const details: Record<string, unknown> = {
+    entity_type: entityType,
+    entity_name: entityName
+  };
+
+  if (existingId !== undefined) {
+    details.existing_id = existingId;
+  }
+
+  const suggestions: string[] = [
+    `${capitalize(entityType)} '${entityName}' already exists in database`
+  ];
+
+  if (existingId !== undefined) {
+    suggestions.push(`Use ID ${existingId} when referencing this ${entityType} in recipes`);
+  } else {
+    suggestions.push(`Use ${searchTool}() or ${listTool}() to get the existing entity ID`);
+  }
 
   return new McpError(
     ErrorCode.InvalidParams,
     JSON.stringify({
       error_code: ENTITY_ALREADY_EXISTS,
-      details: {
-        entity_type: entityType,
-        entity_name: entityName
-      },
-      suggestions: [
-        `${capitalize(entityType)} '${entityName}' already exists in database`,
-        `Use ${searchTool}() or ${listTool}() to verify existence before calling create_${entityType}()`,
-        'If you need to use this entity, reference its existing ID'
-      ]
+      details,
+      suggestions
     })
   );
 }

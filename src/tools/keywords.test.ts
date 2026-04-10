@@ -109,20 +109,18 @@ describe('Keyword Tools', () => {
 
   describe('create', () => {
     it('should create a new keyword', async () => {
+      // Keyword doesn't exist (search returns empty)
+      mockClient.searchKeyword.mockResolvedValue([]);
+
       const mockResponse: TandoorKeyword = { id: 10, name: 'gluten-free' };
       mockClient.createKeyword.mockResolvedValue(mockResponse);
 
       const result = await handlers.create({ name: 'gluten-free' }, undefined);
 
+      expect(mockClient.searchKeyword).toHaveBeenCalledWith('gluten-free');
       expect(mockClient.createKeyword).toHaveBeenCalledWith('gluten-free');
       expect(result.content[0].text).toContain('"id": 10');
       expect(result.content[0].text).toContain('"name": "gluten-free"');
-    });
-
-    it('should throw error for empty name argument', async () => {
-      await expect(handlers.create({ name: '' }, undefined)).rejects.toThrow(
-        new McpError(ErrorCode.InvalidParams, 'Missing required argument: name')
-      );
     });
 
     it('should throw error for empty name', async () => {
@@ -131,15 +129,17 @@ describe('Keyword Tools', () => {
       );
     });
 
-    it('should return entity_already_exists error for duplicate keyword', async () => {
-      const error = new Error('Conflict') as Error & { response?: { status: number; data: unknown } };
-      error.response = { status: 409, data: { name: ['Keyword with this name already exists.'] } };
-      mockClient.createKeyword.mockRejectedValue(error);
+    it('should return entity_already_exists error when keyword already exists', async () => {
+      // Keyword already exists
+      mockClient.searchKeyword.mockResolvedValue([{ id: 3, name: 'Italian' }]);
 
       await expect(handlers.create({ name: 'Italian' }, undefined)).rejects.toThrow('entity_already_exists');
+      await expect(handlers.create({ name: 'Italian' }, undefined)).rejects.toThrow('3'); // Check ID is included
     });
 
     it('should throw generic error when API call fails', async () => {
+      // Keyword doesn't exist (search returns empty)
+      mockClient.searchKeyword.mockResolvedValue([]);
       mockClient.createKeyword.mockRejectedValue(new Error('Internal server error'));
 
       await expect(handlers.create({ name: 'healthy' }, undefined)).rejects.toThrow();

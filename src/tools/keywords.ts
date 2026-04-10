@@ -80,6 +80,10 @@ export function createKeywordToolHandlers(client: TandoorApiClient): KeywordTool
 
   /**
    * Create a new keyword in Tandoor
+   *
+   * Per MCP spec: First checks if keyword already exists by name (case-insensitive).
+   * If it exists, returns entity_already_exists error with the existing entity info.
+   * If not, creates the new keyword.
    */
   const create = async (
     args: { name: string },
@@ -96,10 +100,23 @@ export function createKeywordToolHandlers(client: TandoorApiClient): KeywordTool
     }
 
     try {
+      // Per spec: MUST check for existence first by searching
+      const existingKeywords = await client.searchKeyword(name);
+      const normalizedName = name.trim().toLowerCase();
+      const existingKeyword = existingKeywords.find(
+        k => k.name.toLowerCase() === normalizedName
+      );
+
+      if (existingKeyword) {
+        // Entity already exists - return error with existing entity info
+        throw createEntityExistsError('keyword', name, existingKeyword.id);
+      }
+
+      // Entity doesn't exist - create it
       const result = await client.createKeyword(name);
       return createJsonResponse(result);
     } catch (error) {
-      // Check for 409 Conflict specifically to provide helpful error message
+      // Handle 409 Conflict if Tandoor returns it in the future
       if (isAxiosError(error) && error.response?.status === HTTP_CONFLICT) {
         throw createEntityExistsError('keyword', name);
       }

@@ -109,11 +109,15 @@ describe('Unit Tools', () => {
 
   describe('create', () => {
     it('should create a new unit', async () => {
+      // Unit doesn't exist (search returns empty)
+      mockClient.searchUnit.mockResolvedValue([]);
+
       const mockResponse: TandoorUnit = { id: 10, name: 'pinch' };
       mockClient.createUnit.mockResolvedValue(mockResponse);
 
       const result = await handlers.create({ name: 'pinch' }, undefined);
 
+      expect(mockClient.searchUnit).toHaveBeenCalledWith('pinch');
       expect(mockClient.createUnit).toHaveBeenCalledWith('pinch');
       expect(result.content[0].text).toContain('"id": 10');
       expect(result.content[0].text).toContain('"name": "pinch"');
@@ -125,18 +129,28 @@ describe('Unit Tools', () => {
       );
     });
 
-    it('should return entity_already_exists error for duplicate unit', async () => {
-      const error = new Error('Conflict') as Error & { response?: { status: number; data: unknown } };
-      error.response = { status: 409, data: { name: ['Unit with this name already exists.'] } };
-      mockClient.createUnit.mockRejectedValue(error);
+    it('should return entity_already_exists error when unit already exists', async () => {
+      // Unit already exists
+      mockClient.searchUnit.mockResolvedValue([{ id: 5, name: 'cup' }]);
 
       await expect(handlers.create({ name: 'cup' }, undefined)).rejects.toThrow('entity_already_exists');
+      await expect(handlers.create({ name: 'cup' }, undefined)).rejects.toThrow('5'); // Check ID is included
     });
 
     it('should throw generic error when API call fails', async () => {
+      // Unit doesn't exist (search returns empty)
+      mockClient.searchUnit.mockResolvedValue([]);
       mockClient.createUnit.mockRejectedValue(new Error('Internal server error'));
 
       await expect(handlers.create({ name: 'dash' }, undefined)).rejects.toThrow();
+    });
+
+    it('should be case-insensitive when checking for duplicates', async () => {
+      // Unit exists with different case
+      mockClient.searchUnit.mockResolvedValue([{ id: 88, name: 'Gram' }]);
+
+      await expect(handlers.create({ name: 'gram' }, undefined)).rejects.toThrow('entity_already_exists');
+      await expect(handlers.create({ name: 'gram' }, undefined)).rejects.toThrow('88'); // Check ID is included
     });
   });
 });

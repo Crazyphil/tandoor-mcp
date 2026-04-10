@@ -80,6 +80,10 @@ export function createUnitToolHandlers(client: TandoorApiClient): UnitToolHandle
 
   /**
    * Create a new unit in Tandoor
+   *
+   * Per MCP spec: First checks if unit already exists by name (case-insensitive).
+   * If it exists, returns entity_already_exists error with the existing entity info.
+   * If not, creates the new unit.
    */
   const create = async (
     args: { name: string },
@@ -96,10 +100,23 @@ export function createUnitToolHandlers(client: TandoorApiClient): UnitToolHandle
     }
 
     try {
+      // Per spec: MUST check for existence first by searching
+      const existingUnits = await client.searchUnit(name);
+      const normalizedName = name.trim().toLowerCase();
+      const existingUnit = existingUnits.find(
+        u => u.name.toLowerCase() === normalizedName
+      );
+
+      if (existingUnit) {
+        // Entity already exists - return error with existing entity info
+        throw createEntityExistsError('unit', name, existingUnit.id);
+      }
+
+      // Entity doesn't exist - create it
       const result = await client.createUnit(name);
       return createJsonResponse(result);
     } catch (error) {
-      // Check for 409 Conflict specifically to provide helpful error message
+      // Handle 409 Conflict if Tandoor returns it in the future
       if (isAxiosError(error) && error.response?.status === HTTP_CONFLICT) {
         throw createEntityExistsError('unit', name);
       }

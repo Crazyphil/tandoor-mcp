@@ -106,22 +106,30 @@ describe('Food Tools', () => {
 
   describe('create', () => {
     it('should create a new food', async () => {
+      // Food doesn't exist (search returns empty)
+      mockClient.searchFood.mockResolvedValue([]);
+
       const mockResponse: TandoorFood = { id: 10, name: 'avocado', plural_name: 'avocados' };
       mockClient.createFood.mockResolvedValue(mockResponse);
 
       const result = await handlers.create({ name: 'avocado', plural_name: 'avocados' }, undefined);
 
+      expect(mockClient.searchFood).toHaveBeenCalledWith('avocado');
       expect(mockClient.createFood).toHaveBeenCalledWith('avocado', 'avocados');
       expect(result.content[0].text).toContain('"id": 10');
       expect(result.content[0].text).toContain('"name": "avocado"');
     });
 
     it('should create food without plural_name', async () => {
+      // Food doesn't exist (search returns empty)
+      mockClient.searchFood.mockResolvedValue([]);
+
       const mockResponse: TandoorFood = { id: 10, name: 'salt' };
       mockClient.createFood.mockResolvedValue(mockResponse);
 
       await handlers.create({ name: 'salt' }, undefined);
 
+      expect(mockClient.searchFood).toHaveBeenCalledWith('salt');
       expect(mockClient.createFood).toHaveBeenCalledWith('salt', undefined);
     });
 
@@ -131,18 +139,28 @@ describe('Food Tools', () => {
       );
     });
 
-    it('should return entity_already_exists error for duplicate food', async () => {
-      const error = new Error('Conflict') as Error & { response?: { status: number; data: unknown } };
-      error.response = { status: 409, data: { name: ['Food with this name already exists.'] } };
-      mockClient.createFood.mockRejectedValue(error);
+    it('should return entity_already_exists error when food already exists', async () => {
+      // Food already exists
+      mockClient.searchFood.mockResolvedValue([{ id: 42, name: 'onion', plural_name: 'onions' }]);
 
       await expect(handlers.create({ name: 'onion' }, undefined)).rejects.toThrow('entity_already_exists');
+      await expect(handlers.create({ name: 'onion' }, undefined)).rejects.toThrow('42'); // Check ID is included
     });
 
     it('should throw generic error when API call fails', async () => {
+      // Food doesn't exist (search returns empty)
+      mockClient.searchFood.mockResolvedValue([]);
       mockClient.createFood.mockRejectedValue(new Error('Internal server error'));
 
       await expect(handlers.create({ name: 'newfood' }, undefined)).rejects.toThrow();
+    });
+
+    it('should be case-insensitive when checking for duplicates', async () => {
+      // Food exists with different case
+      mockClient.searchFood.mockResolvedValue([{ id: 99, name: 'Tomato', plural_name: 'tomatoes' }]);
+
+      await expect(handlers.create({ name: 'tomato' }, undefined)).rejects.toThrow('entity_already_exists');
+      await expect(handlers.create({ name: 'tomato' }, undefined)).rejects.toThrow('99'); // Check ID is included
     });
   });
 });

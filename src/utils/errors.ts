@@ -10,10 +10,12 @@ import {
   ENTITY_ALREADY_EXISTS,
   MISSING_ENTITIES,
   API_SCHEMA_MISMATCH,
+  NOT_FOUND,
   UNEXPECTED_ERROR,
   HTTP_CONFLICT,
   HTTP_UNAUTHORIZED,
-  HTTP_FORBIDDEN
+  HTTP_FORBIDDEN,
+  HTTP_NOT_FOUND
 } from '../constants';
 
 /**
@@ -88,6 +90,21 @@ export function handleApiError(
       JSON.stringify({
         error_code: 'auth_failed',
         details: { message: 'Authentication failed. Check your API token.' }
+      })
+    );
+  }
+
+  // Handle 404 Not Found
+  if (status === HTTP_NOT_FOUND) {
+    return new McpError(
+      ErrorCode.InvalidRequest,
+      JSON.stringify({
+        error_code: NOT_FOUND,
+        details: {
+          http_status: status,
+          entity_type: entityType,
+          message: entityType ? `${entityType} not found` : 'Resource not found'
+        }
       })
     );
   }

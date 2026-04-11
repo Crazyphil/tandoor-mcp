@@ -27,6 +27,9 @@ export const AUTH_FAILED = 'auth_failed';
 /** Recipe already exists in the database */
 export const DUPLICATE_RECIPE = 'duplicate_recipe';
 
+/** Resource not found (404) */
+export const NOT_FOUND = 'not_found';
+
 /** Unexpected or catch-all error */
 export const UNEXPECTED_ERROR = 'unexpected_error';
 
@@ -38,6 +41,7 @@ export const ErrorCodes = {
   API_SCHEMA_MISMATCH,
   AUTH_FAILED,
   DUPLICATE_RECIPE,
+  NOT_FOUND,
   UNEXPECTED_ERROR
 } as const;
 

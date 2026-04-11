@@ -4,8 +4,12 @@ import {
   TandoorStep,
   TandoorIngredient,
   ValidationError,
-  RecipeInstruction
+  RecipeInstruction,
+  TandoorFood,
+  TandoorUnit,
+  TandoorKeyword
 } from '../types';
+import { TandoorApiClient } from '../api/client';
 
 /**
  * Validates that a recipe has minimum required fields for import
@@ -533,4 +537,480 @@ export function identifyIgnoredFields(recipe: SchemaOrgRecipe): string[] {
   }
 
   return ignoredFields;
+}
+
+// ============================================================================
+// Entity Resolver (uses search instead of bulk fetch to avoid timeouts)
+// ============================================================================
+
+interface EntityCache {
+  foods: Map<string, TandoorFood | undefined>;
+  units: Map<string, TandoorUnit | undefined>;
+  keywords: Map<string, TandoorKeyword | undefined>;
+}
+
+interface AsyncMissingEntities {
+  foods: string[];
+  units: string[];
+  keywords: string[];
+}
+
+interface AsyncEntityLookup {
+  getFood: (name: string) => Promise<TandoorFood | undefined>;
+  getUnit: (name: string) => Promise<TandoorUnit | undefined>;
+  getKeyword: (name: string) => Promise<TandoorKeyword | undefined>;
+  getMissingEntities: () => AsyncMissingEntities;
+  /**
+   * Find a unit but don't mark it as missing if not found.
+   * Used for parsing ingredients where we try to extract potential units.
+   * Returns undefined if not found without adding to missing entities.
+   */
+  findUnit: (name: string) => Promise<TandoorUnit | undefined>;
+}
+
+/**
+ * EntityResolver uses targeted search API calls instead of bulk fetching
+ * all entities from Tandoor. This prevents timeouts on instances with
+ * thousands of foods/units/keywords (e.g., 42k+ foods).
+ * 
+ * Uses in-memory caching to avoid duplicate API calls for the same entity names
+ * within a single recipe import.
+ */
+export class EntityResolver implements AsyncEntityLookup {
+  private client: TandoorApiClient;
+  private cache: EntityCache;
+  private missingEntities: AsyncMissingEntities;
+
+  constructor(client: TandoorApiClient) {
+    this.client = client;
+    this.cache = {
+      foods: new Map(),
+      units: new Map(),
+      keywords: new Map()
+    };
+    this.missingEntities = {
+      foods: [],
+      units: [],
+      keywords: []
+    };
+  }
+
+  async getFood(name: string): Promise<TandoorFood | undefined> {
+    const normalizedName = name.toLowerCase().trim();
+
+    // Check cache first
+    if (this.cache.foods.has(normalizedName)) {
+      return this.cache.foods.get(normalizedName);
+    }
+
+    try {
+      // Search for the food using the API
+      const results = await this.client.searchFood(normalizedName);
+
+      // Find exact match (case-insensitive) in the search results
+      // Tandoor search returns foods that contain the query string,
+      // so we must scan all results to find the exact match
+      const match = results.find(f =>
+        f.name.toLowerCase() === normalizedName ||
+        (f.plural_name && f.plural_name.toLowerCase() === normalizedName)
+      );
+
+      if (match) {
+        this.cache.foods.set(normalizedName, match);
+        return match;
+      }
+
+      // Not found - cache the miss and track as missing
+      this.cache.foods.set(normalizedName, undefined);
+      if (!this.missingEntities.foods.includes(name)) {
+        this.missingEntities.foods.push(name);
+      }
+      return undefined;
+    } catch (error) {
+      // API error - treat as not found
+      this.cache.foods.set(normalizedName, undefined);
+      if (!this.missingEntities.foods.includes(name)) {
+        this.missingEntities.foods.push(name);
+      }
+      return undefined;
+    }
+  }
+
+  async getUnit(name: string): Promise<TandoorUnit | undefined> {
+    const normalizedName = name.toLowerCase().trim();
+    
+    if (this.cache.units.has(normalizedName)) {
+      return this.cache.units.get(normalizedName);
+    }
+
+    try {
+      const results = await this.client.searchUnit(normalizedName);
+      
+      const match = results.find(u => 
+        u.name.toLowerCase() === normalizedName || 
+        (u.plural_name && u.plural_name.toLowerCase() === normalizedName)
+      );
+
+      if (match) {
+        this.cache.units.set(normalizedName, match);
+        return match;
+      }
+
+      this.cache.units.set(normalizedName, undefined);
+      if (!this.missingEntities.units.includes(name)) {
+        this.missingEntities.units.push(name);
+      }
+      return undefined;
+    } catch (error) {
+      this.cache.units.set(normalizedName, undefined);
+      if (!this.missingEntities.units.includes(name)) {
+        this.missingEntities.units.push(name);
+      }
+      return undefined;
+    }
+  }
+
+  async getKeyword(name: string): Promise<TandoorKeyword | undefined> {
+    const normalizedName = name.toLowerCase().trim();
+
+    if (this.cache.keywords.has(normalizedName)) {
+      return this.cache.keywords.get(normalizedName);
+    }
+
+    try {
+      const results = await this.client.searchKeyword(normalizedName);
+
+      // Find exact match (case-insensitive) in the search results
+      const match = results.find(k => k.name.toLowerCase() === normalizedName);
+
+      if (match) {
+        this.cache.keywords.set(normalizedName, match);
+        return match;
+      }
+
+      this.cache.keywords.set(normalizedName, undefined);
+      if (!this.missingEntities.keywords.includes(name)) {
+        this.missingEntities.keywords.push(name);
+      }
+      return undefined;
+    } catch (error) {
+      this.cache.keywords.set(normalizedName, undefined);
+      if (!this.missingEntities.keywords.includes(name)) {
+        this.missingEntities.keywords.push(name);
+      }
+      return undefined;
+    }
+  }
+
+  getMissingEntities(): AsyncMissingEntities {
+    return {
+      foods: [...this.missingEntities.foods],
+      units: [...this.missingEntities.units],
+      keywords: [...this.missingEntities.keywords]
+    };
+  }
+
+  /**
+   * Search for a unit without tracking it as "missing" if not found.
+   * Used during ingredient parsing to test if a word might be a unit.
+   * This is distinct from getUnit() which is used for explicit unit lookups.
+   */
+  async findUnit(name: string): Promise<TandoorUnit | undefined> {
+    const normalizedName = name.toLowerCase().trim();
+    
+    // Check cache first
+    if (this.cache.units.has(normalizedName)) {
+      return this.cache.units.get(normalizedName);
+    }
+
+    try {
+      const results = await this.client.searchUnit(normalizedName);
+      
+      const match = results.find(u => 
+        u.name.toLowerCase() === normalizedName || 
+        (u.plural_name && u.plural_name.toLowerCase() === normalizedName)
+      );
+
+      if (match) {
+        this.cache.units.set(normalizedName, match);
+        return match;
+      }
+
+      // Not found - cache the miss but don't track as missing (this is a speculative lookup)
+      this.cache.units.set(normalizedName, undefined);
+      return undefined;
+    } catch (error) {
+      // API error - just return undefined
+      return undefined;
+    }
+  }
+}
+
+/**
+ * Async version of convertSchemaOrgToTandoor that uses the EntityResolver
+ * instead of a pre-built entity map. This prevents the need to fetch all
+ * entities upfront, avoiding timeouts with large databases.
+ */
+export async function convertSchemaOrgToTandoorAsync(
+  recipe: SchemaOrgRecipe,
+  entityResolver: AsyncEntityLookup
+): Promise<{ payload: TandoorRecipePayload; field_transformations: string[]; missingEntities: AsyncMissingEntities }> {
+  const field_transformations: string[] = [];
+
+  const payload: TandoorRecipePayload = {
+    name: recipe.name,
+    description: recipe.description || '',
+    internal: false,
+    steps: [],
+    ingredients: []
+  };
+
+  // Handle servings
+  if (recipe.servings) {
+    payload.servings = recipe.servings;
+    field_transformations.push(`servings set to ${recipe.servings}`);
+  } else if (recipe.recipeYield) {
+    if (typeof recipe.recipeYield === 'number') {
+      payload.servings = recipe.recipeYield;
+      field_transformations.push(`servings set from recipeYield: ${recipe.recipeYield}`);
+    } else if (typeof recipe.recipeYield === 'string') {
+      const yieldStr = recipe.recipeYield.trim();
+      const match = yieldStr.match(/^(\d+(?:\.\d+)?)\s*(.*)$/);
+      
+      if (match) {
+        const numValue = parseFloat(match[1]);
+        if (!isNaN(numValue)) {
+          payload.servings = numValue;
+          const textPart = match[2].trim();
+          if (textPart) {
+            payload.servings_text = textPart;
+            field_transformations.push(`servings (${numValue}) and servings_text ('${textPart}') derived from recipeYield: '${recipe.recipeYield}'`);
+          } else {
+            field_transformations.push(`servings (${numValue}) derived from recipeYield: '${recipe.recipeYield}'`);
+          }
+        }
+      }
+    }
+  }
+
+  // Handle source URL
+  if (recipe.sourceUrl) {
+    payload.source_url = recipe.sourceUrl;
+  }
+
+  // Handle time fields
+  if (recipe.prepTime) {
+    const prepMinutes = parseIsoDuration(recipe.prepTime);
+    if (prepMinutes !== null) {
+      payload.working_time = prepMinutes;
+      field_transformations.push(`prepTime (${prepMinutes} min) mapped to working_time`);
+    }
+  }
+  
+  if (recipe.cookTime) {
+    const cookMinutes = parseIsoDuration(recipe.cookTime);
+    if (cookMinutes !== null) {
+      payload.waiting_time = cookMinutes;
+      field_transformations.push(`cookTime (${cookMinutes} min) mapped to waiting_time`);
+    }
+  }
+  
+  if (recipe.totalTime) {
+    const totalMinutes = parseIsoDuration(recipe.totalTime);
+    if (totalMinutes !== null) {
+      const prepMinutes = payload.working_time || 0;
+      const cookMinutes = payload.waiting_time || 0;
+      if (totalMinutes !== prepMinutes + cookMinutes) {
+        field_transformations.push(`totalTime (${totalMinutes} min) differs from prep + cook time sum (${prepMinutes + cookMinutes} min)`);
+      }
+    }
+  }
+
+  // Handle instructions
+  const { steps: instructionSteps } = parseInstructions(
+    recipe.recipeInstructions || []
+  );
+  
+  let finalSteps = instructionSteps;
+  if (recipe.author?.name) {
+    finalSteps = appendAuthorToSteps(instructionSteps, recipe.author.name);
+    field_transformations.push(`author '${recipe.author.name}' appended to last step as italicized attribution`);
+  }
+  
+  payload.steps = finalSteps;
+
+  // Handle ingredients using async resolution
+  const ingredients: TandoorIngredient[] = [];
+  const ingredientList = recipe.recipeIngredient || [];
+  
+  for (let index = 0; index < ingredientList.length; index++) {
+    const ingredientStr = ingredientList[index];
+    
+    if (!ingredientStr || typeof ingredientStr !== 'string') {
+      continue;
+    }
+
+    // Split on comma to separate main ingredient from note
+    const [mainPart, ...noteParts] = ingredientStr.split(',');
+    const note = noteParts.length > 0 ? noteParts.join(',').trim() : undefined;
+
+    const parsed = parseIngredientAmount(mainPart.trim());
+    let foodName: string;
+    let amount: string | undefined;
+    let unitId: number | undefined;
+
+    if (parsed) {
+      amount = parsed.amount;
+      const unitAndFood = parsed.unit.trim();
+
+      // Try to extract unit from the start of unitAndFood
+      let extractedUnit = '';
+      let remainder = unitAndFood;
+
+      if (unitAndFood) {
+        const words = unitAndFood.split(/\s+/);
+        for (let i = 0; i < words.length; i++) {
+          const potentialUnit = words.slice(0, i + 1).join(' ').toLowerCase();
+          // Use a special method that doesn't mark failed lookups as missing
+          // since many "potential units" are actually foods
+          const unitResult = await entityResolver.findUnit(potentialUnit);
+          
+          if (unitResult) {
+            extractedUnit = potentialUnit;
+            unitId = unitResult.id;
+            remainder = words.slice(i + 1).join(' ');
+            break;
+          }
+        }
+      }
+
+      foodName = remainder.trim() || unitAndFood;
+    } else {
+      foodName = mainPart.trim();
+    }
+
+    foodName = foodName.toLowerCase();
+
+    // Skip if no food name
+    if (!foodName) {
+      continue;
+    }
+
+    // Look up food ID using async resolver
+    let foodId: number | undefined;
+    
+    // Try full name first
+    let foodResult = await entityResolver.getFood(foodName);
+    
+    // If not found and has multiple words, try progressively shorter prefixes
+    if (!foodResult && foodName.includes(' ')) {
+      const foodWords = foodName.split(/\s+/);
+      for (let i = foodWords.length; i > 0; i--) {
+        const testName = foodWords.slice(0, i).join(' ');
+        foodResult = await entityResolver.getFood(testName);
+        if (foodResult) {
+          break;
+        }
+      }
+    }
+
+    if (foodResult) {
+      foodId = foodResult.id;
+    }
+
+    if (foodId === undefined) {
+      // Entity resolver already tracked this as missing
+      continue;
+    }
+
+    ingredients.push({
+      amount: amount ? parseFloat(amount) : undefined,
+      unit: unitId,
+      food: foodId,
+      note: note,
+      order: index,
+      original_text: ingredientStr,
+      no_amount: !amount
+    });
+  }
+
+  payload.ingredients = ingredients;
+
+  // Handle nutrition
+  if (recipe.nutrition && typeof recipe.nutrition === 'object') {
+    payload.nutrition = recipe.nutrition;
+    field_transformations.push('nutrition information included in recipe');
+  }
+
+  // Handle keywords using async resolution
+  const keywordIds: number[] = [];
+  
+  if (recipe.keywords && Array.isArray(recipe.keywords)) {
+    for (const keyword of recipe.keywords) {
+      const keywordResult = await entityResolver.getKeyword(keyword.toLowerCase().trim());
+      if (keywordResult) {
+        keywordIds.push(keywordResult.id);
+        field_transformations.push(`keyword '${keyword}' mapped to ID ${keywordResult.id}`);
+      }
+    }
+  }
+
+  if (recipe.recipeCategory && typeof recipe.recipeCategory === 'string') {
+    const categoryResult = await entityResolver.getKeyword(recipe.recipeCategory.toLowerCase().trim());
+    if (categoryResult) {
+      keywordIds.push(categoryResult.id);
+      field_transformations.push(`recipeCategory '${recipe.recipeCategory}' mapped to keyword ID ${categoryResult.id}`);
+    }
+  }
+
+  if (recipe.recipeCuisine) {
+    const cuisines = Array.isArray(recipe.recipeCuisine)
+      ? recipe.recipeCuisine
+      : [recipe.recipeCuisine];
+
+    for (const cuisine of cuisines) {
+      if (typeof cuisine === 'string') {
+        const cuisineResult = await entityResolver.getKeyword(cuisine.toLowerCase().trim());
+        if (cuisineResult) {
+          keywordIds.push(cuisineResult.id);
+          field_transformations.push(`recipeCuisine '${cuisine}' mapped to keyword ID ${cuisineResult.id}`);
+        }
+      }
+    }
+  }
+
+  if (recipe.suitableForDiet) {
+    const diets = Array.isArray(recipe.suitableForDiet)
+      ? recipe.suitableForDiet
+      : [recipe.suitableForDiet];
+
+    for (const diet of diets) {
+      if (typeof diet === 'string') {
+        const dietKeyword = diet
+          .replace(/Diet$/, '')
+          .replace(/([A-Z])/g, ' $1')
+          .trim()
+          .toLowerCase();
+        
+        let dietResult = await entityResolver.getKeyword(diet.toLowerCase());
+        if (!dietResult && dietKeyword) {
+          dietResult = await entityResolver.getKeyword(dietKeyword);
+        }
+        
+        if (dietResult) {
+          keywordIds.push(dietResult.id);
+          field_transformations.push(`suitableForDiet '${diet}' mapped to keyword ID ${dietResult.id}`);
+        }
+      }
+    }
+  }
+
+  if (keywordIds.length > 0) {
+    payload.keywords = [...new Set(keywordIds)];
+  }
+
+  // Get missing entities from resolver
+  const missingEntities = entityResolver.getMissingEntities();
+
+  return { payload, field_transformations, missingEntities };
 }

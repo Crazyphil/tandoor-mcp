@@ -488,9 +488,13 @@ function parseIngredients(
       return;
     }
 
+    // API requires amount and unit always.
+    // When no_amount is true, amount should be 0 (not undefined).
+    const parsedAmount = amount ? parseFloat(amount) : 0;
+    
     tandoorIngredients.push({
-      amount: amount ? parseFloat(amount) : undefined,
-      unit: unitId,
+      amount: parsedAmount,
+      unit: unitId ?? null, // unit is required but can be null
       food: foodId,
       note: note,
       order: index,
@@ -923,9 +927,13 @@ export async function convertSchemaOrgToTandoorAsync(
       continue;
     }
 
+    // API requires amount and unit always.
+    // When no_amount is true, amount should be 0 (not undefined).
+    const parsedAmount = amount ? parseFloat(amount) : 0;
+    
     ingredients.push({
-      amount: amount ? parseFloat(amount) : undefined,
-      unit: unitId,
+      amount: parsedAmount,
+      unit: unitId ?? null, // unit is required but can be null
       food: foodId,
       note: note,
       order: index,

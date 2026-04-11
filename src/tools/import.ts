@@ -222,9 +222,10 @@ export class RecipeImporter {
             const fullRecipe = await this.client.getRecipe(existingRecipe.id);
             
             // Build sorted ingredient list from existing recipe
+            // Note: API returns nested food objects, but for comparison we only need the ID
             const existingIngredients = (fullRecipe.steps || [])
               .flatMap(s => s.ingredients || [])
-              .map(i => i.food)
+              .map(i => typeof i.food === 'object' ? i.food.id : i.food)
               .sort((a, b) => a - b)
               .join(',');
 

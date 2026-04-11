@@ -627,8 +627,10 @@ describe('convertSchemaOrgToTandoor', () => {
 
     expect(payload.ingredients.length).toBe(1);
     expect(payload.ingredients[0].food).toBe(4); // salt
-    expect(payload.ingredients[0].amount).toBeUndefined();
-    expect(payload.ingredients[0].unit).toBeUndefined();
+    // Real API requires 'amount' and 'unit' fields always.
+    // When no_amount is true, amount should be 0 and unit should be a valid ID.
+    expect(payload.ingredients[0].amount).toBe(0);
+    expect(payload.ingredients[0].unit).toBeDefined();
     expect(payload.ingredients[0].no_amount).toBe(true);
     expect(payload.ingredients[0].note).toBe('to taste');
     expect(payload.ingredients[0].original_text).toBe('salt, to taste');

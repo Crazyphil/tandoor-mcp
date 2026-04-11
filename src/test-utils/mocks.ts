@@ -80,6 +80,60 @@ export function createMockImportResult(overrides: Partial<ImportResult> = {}): I
 }
 
 /**
+ * Create a mock TandoorRecipeResponse for testing
+ * 
+ * Mimics real Tandoor API POST /api/recipe/ response structure
+ * The real API returns full recipe with resolved nested entities
+ */
+export function createMockRecipeResponse(
+  overrides: Partial<TandoorRecipeResponse> = {}
+): TandoorRecipeResponse {
+  return {
+    id: 123,
+    name: 'Test Recipe',
+    description: 'A test recipe description',
+    servings: 4,
+    servings_text: '',
+    source_url: null,
+    image: null,
+    keywords: [],
+    steps: [
+      {
+        id: 1,
+        name: '',
+        instruction: 'Mix ingredients',
+        order: 0,
+        ingredients: [
+          {
+            id: 1,
+            food: {
+              id: 1,
+              name: 'flour',
+              plural_name: null
+            },
+            unit: {
+              id: 1,
+              name: 'cup',
+              plural_name: 'cups'
+            },
+            amount: 2,
+            note: null,
+            order: 0,
+            is_header: false,
+            no_amount: false,
+            original_text: null
+          }
+        ]
+      }
+    ],
+    working_time: 0,
+    waiting_time: 0,
+    internal: true,
+    ...overrides
+  } as TandoorRecipeResponse;
+}
+
+/**
  * Create a mock PaginatedResponse for foods
  *
  * Mimics real Tandoor API response structure including timestamp field

@@ -57,15 +57,45 @@ export interface TandoorRecipePayload {
 }
 
 export interface TandoorStep {
+  id?: number; // Present in API response, optional for creation payload
   name?: string;
   instruction: string;
   order: number;
   ingredients: TandoorIngredient[];
 }
 
-export interface TandoorIngredient {
+/** Extended ingredient type for API responses with nested entities */
+export interface TandoorIngredientResponse {
+  id?: number;
   amount?: number;
-  unit?: number; // unit ID
+  unit?: {
+    id: number;
+    name: string;
+    plural_name?: string | null;
+    description?: string | null;
+  };
+  food: {
+    id: number;
+    name: string;
+    plural_name?: string | null;
+    description?: string;
+  };
+  note?: string | null;
+  order: number;
+  is_header?: boolean;
+  no_amount?: boolean;
+  original_text?: string | null;
+}
+
+/**
+ * Tandoor ingredient for API payload (creation/update)
+ * 
+ * Note: API requires both 'amount' and 'unit' fields always present.
+ * When no_amount=true, set amount=0 and unit can be null or any valid unit ID.
+ */
+export interface TandoorIngredient {
+  amount: number; // Always required - use 0 when no_amount=true
+  unit: number | null; // unit ID - always required but can be null
   food: number; // food ID
   note?: string;
   order: number;
@@ -92,16 +122,39 @@ export interface TandoorKeyword {
   name: string;
 }
 
+/** Step structure as returned by Tandoor API (with resolved nested entities) */
+export interface TandoorStepResponse {
+  id: number;
+  name: string;
+  instruction: string;
+  order: number;
+  ingredients: TandoorIngredientResponse[];
+  instructions_markdown?: string;
+  time?: number;
+  show_as_header?: boolean;
+}
+
 export interface TandoorRecipeResponse {
   id: number;
   name: string;
-  description?: string;
+  description?: string | null;
   servings?: number;
-  source_url?: string;
-  image?: string;
+  servings_text?: string;
+  source_url?: string | null;
+  image?: string | null;
   keywords?: TandoorKeyword[];
-  steps?: TandoorStep[];
-  ingredients?: TandoorIngredient[];
+  steps?: TandoorStepResponse[];
+  ingredients?: TandoorIngredientResponse[];
+  internal?: boolean;
+  working_time?: number;
+  waiting_time?: number;
+  created_by?: {
+    id: number;
+    username: string;
+    first_name?: string;
+    last_name?: string;
+    display_name?: string;
+  };
 }
 
 export interface PaginatedResponse<T> {

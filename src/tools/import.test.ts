@@ -139,9 +139,41 @@ describe('RecipeImporter', () => {
           allKeywords.filter(k => k.name.toLowerCase().includes(normalizedQuery))
         );
       }),
+      // Real Tandoor API returns full recipe object with resolved steps and ingredients
+      // See /api/recipe/ POST response structure
       createRecipe: jest.fn().mockResolvedValue({
         id: 123,
-        name: 'Test Recipe'
+        name: 'Test Recipe',
+        description: null,
+        image: null,
+        keywords: [],
+        steps: [
+          {
+            id: 1,
+            name: 'Step 1',
+            instruction: 'Cook',
+            ingredients: [
+              {
+                id: 1,
+                food: { id: 1, name: 'spaghetti', plural_name: 'spaghetti' },
+                unit: { id: 1, name: 'g', plural_name: 'g' },
+                amount: 100,
+                order: 0,
+                is_header: false,
+                no_amount: false,
+                original_text: null
+              }
+            ],
+            order: 0
+          }
+        ],
+        servings: 1,
+        servings_text: '',
+        source_url: null,
+        internal: true,
+        working_time: 0,
+        waiting_time: 0,
+        created_by: { id: 1, username: 'test' }
       })
     };
 
@@ -285,6 +317,103 @@ describe('RecipeImporter', () => {
       // Warnings should NOT contain the missing food message - it's an error, not a warning
       const foodWarning = result.mapping_notes.warnings.find(w => w.includes('unknownfood123'));
       expect(foodWarning).toBeUndefined();
+    });
+
+    it('should handle API validation errors for missing required fields', async () => {
+      // Real Tandoor API returns 400 errors with validation messages like:
+      // {"name":["This field is required."]} or {"steps":["This field is required."]}
+      const validationError = new Error('API Error');
+      (validationError as any).response = {
+        data: { name: ['This field is required.'] }
+      };
+      mockClient.createRecipe.mockRejectedValue(validationError);
+
+      const recipe: SchemaOrgRecipe = {
+        name: 'Test Recipe',
+        recipeIngredient: ['1 onion'],
+        recipeInstructions: ['Cook']
+      };
+
+      const result = await importer.importRecipeFromJson(recipe);
+
+      expect(result.import_status).toBe('error');
+      expect(result.mapping_notes.error_code).toBe('api_schema_mismatch');
+      expect(result.mapping_notes.error_details).toEqual({ name: ['This field is required.'] });
+    });
+
+    it('should handle missing food ID with 500 server error', async () => {
+      // Real Tandoor API returns 500 error when ingredient has invalid food ID
+      const serverError = new Error('Internal Server Error');
+      (serverError as any).response = {
+        status: 500,
+        data: { detail: 'Server Error' }
+      };
+      mockClient.createRecipe.mockRejectedValue(serverError);
+
+      const recipe: SchemaOrgRecipe = {
+        name: 'Test Recipe',
+        recipeIngredient: ['1 onion'],
+        recipeInstructions: ['Cook']
+      };
+
+      const result = await importer.importRecipeFromJson(recipe);
+
+      expect(result.import_status).toBe('error');
+      expect(result.mapping_notes.error_code).toBe('api_schema_mismatch');
+    });
+
+    it('should handle API error without response body', async () => {
+      // Test error handling when error doesn't have response.data structure
+      const plainError = new Error('Network connection failed');
+      mockClient.createRecipe.mockRejectedValue(plainError);
+
+      const recipe: SchemaOrgRecipe = {
+        name: 'Test Recipe',
+        recipeIngredient: ['1 onion'],
+        recipeInstructions: ['Cook']
+      };
+
+      const result = await importer.importRecipeFromJson(recipe);
+
+      expect(result.import_status).toBe('error');
+      expect(result.mapping_notes.error_code).toBe('api_schema_mismatch');
+      expect(result.mapping_notes.error_details).toBe('Network connection failed');
+    });
+
+    it('should verify createRecipe is called with correct Tandoor payload', async () => {
+      // Track the payload passed to createRecipe to ensure proper structure
+      let capturedPayload: any;
+      mockClient.createRecipe.mockImplementation((payload: any) => {
+        capturedPayload = payload;
+        return Promise.resolve({
+          id: 123,
+          name: payload.name || 'Test Recipe',
+          steps: [],
+          keywords: []
+        });
+      });
+
+      const recipe: SchemaOrgRecipe = {
+        name: 'Spaghetti Bolognese',
+        description: 'A classic pasta dish',
+        recipeIngredient: ['2 onion', '100 g spaghetti'],
+        recipeInstructions: ['Cook the pasta', 'Add sauce'],
+        servings: 4
+      };
+
+      await importer.importRecipeFromJson(recipe);
+
+      // Verify the payload structure matches Tandoor API expectations
+      expect(capturedPayload).toBeDefined();
+      expect(capturedPayload.name).toBe('Spaghetti Bolognese');
+      // Note: internal flag defaults to false in the converter (recipes are external by default)
+      expect(capturedPayload.internal).toBe(false);
+      expect(capturedPayload.servings).toBe(4);
+      expect(capturedPayload.steps).toBeDefined();
+      expect(Array.isArray(capturedPayload.steps)).toBe(true);
+      expect(capturedPayload.steps.length).toBe(2); // One for each instruction
+      expect(capturedPayload.ingredients).toBeDefined();
+      expect(Array.isArray(capturedPayload.ingredients)).toBe(true);
     });
   });
 });

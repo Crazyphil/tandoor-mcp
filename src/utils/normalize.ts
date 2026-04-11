@@ -630,7 +630,7 @@ export class EntityResolver implements AsyncEntityLookup {
         this.missingEntities.foods.push(name);
       }
       return undefined;
-    } catch (error) {
+    } catch {
       // API error - treat as not found
       this.cache.foods.set(normalizedName, undefined);
       if (!this.missingEntities.foods.includes(name)) {
@@ -665,7 +665,7 @@ export class EntityResolver implements AsyncEntityLookup {
         this.missingEntities.units.push(name);
       }
       return undefined;
-    } catch (error) {
+    } catch {
       this.cache.units.set(normalizedName, undefined);
       if (!this.missingEntities.units.includes(name)) {
         this.missingEntities.units.push(name);
@@ -697,7 +697,7 @@ export class EntityResolver implements AsyncEntityLookup {
         this.missingEntities.keywords.push(name);
       }
       return undefined;
-    } catch (error) {
+    } catch {
       this.cache.keywords.set(normalizedName, undefined);
       if (!this.missingEntities.keywords.includes(name)) {
         this.missingEntities.keywords.push(name);
@@ -743,7 +743,7 @@ export class EntityResolver implements AsyncEntityLookup {
       // Not found - cache the miss but don't track as missing (this is a speculative lookup)
       this.cache.units.set(normalizedName, undefined);
       return undefined;
-    } catch (error) {
+    } catch {
       // API error - just return undefined
       return undefined;
     }
@@ -868,7 +868,6 @@ export async function convertSchemaOrgToTandoorAsync(
       const unitAndFood = parsed.unit.trim();
 
       // Try to extract unit from the start of unitAndFood
-      let extractedUnit = '';
       let remainder = unitAndFood;
 
       if (unitAndFood) {
@@ -880,7 +879,7 @@ export async function convertSchemaOrgToTandoorAsync(
           const unitResult = await entityResolver.findUnit(potentialUnit);
           
           if (unitResult) {
-            extractedUnit = potentialUnit;
+            // Found a unit - store the ID and update remainder
             unitId = unitResult.id;
             remainder = words.slice(i + 1).join(' ');
             break;

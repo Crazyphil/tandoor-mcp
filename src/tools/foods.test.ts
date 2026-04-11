@@ -70,9 +70,12 @@ describe('Food Tools', () => {
 
   describe('search', () => {
     it('should search foods by query', async () => {
+      // Real API returns foods where name contains the query (fuzzy search)
+      // The code then finds the exact match (case-insensitive) within results
       const mockResponse: TandoorFood[] = [
         { id: 1, name: 'onion', plural_name: 'onions' },
-        { id: 2, name: 'green onion', plural_name: 'green onions' }
+        { id: 2, name: 'green onion', plural_name: 'green onions' },
+        { id: 3, name: 'onion powder', plural_name: 'onion powders' }
       ];
 
       mockClient.searchFood.mockResolvedValue(mockResponse);
@@ -80,13 +83,18 @@ describe('Food Tools', () => {
       const result = await handlers.search({ query: 'onion' }, undefined);
 
       expect(mockClient.searchFood).toHaveBeenCalledWith('onion');
+      // Returns all results containing 'onion' (real API behavior)
       expect(result.content[0].text).toContain('"name": "onion"');
+      expect(result.content[0].text).toContain('"name": "green onion"');
     });
 
     it('should return empty results for no matches', async () => {
+      // Real API: even for non-existent queries, may return results where
+      // the query string appears as substring in some unrelated names
+      // But if no exact match exists, the final filtered result is empty
       mockClient.searchFood.mockResolvedValue([]);
 
-      const result = await handlers.search({ query: 'xyz123' }, undefined);
+      const result = await handlers.search({ query: 'xyz123nonexistent' }, undefined);
 
       expect(result.content[0].text).toBe('[]');
     });
@@ -106,8 +114,14 @@ describe('Food Tools', () => {
 
   describe('create', () => {
     it('should create a new food', async () => {
-      // Food doesn't exist (search returns empty)
-      mockClient.searchFood.mockResolvedValue([]);
+      // Real API behavior: search returns foods containing the query,
+      // but none with exact name match (case-insensitive)
+      // e.g., searching "avocado" might return "avocado oil", "fake_avocado_test"
+      // but no exact "avocado" entry
+      mockClient.searchFood.mockResolvedValue([
+        { id: 100, name: 'avocado oil', plural_name: 'avocado oils' },
+        { id: 101, name: 'test_avocado_something' }
+      ]);
 
       const mockResponse: TandoorFood = { id: 10, name: 'avocado', plural_name: 'avocados' };
       mockClient.createFood.mockResolvedValue(mockResponse);
@@ -140,24 +154,35 @@ describe('Food Tools', () => {
     });
 
     it('should return entity_already_exists error when food already exists', async () => {
-      // Food already exists
-      mockClient.searchFood.mockResolvedValue([{ id: 42, name: 'onion', plural_name: 'onions' }]);
+      // Real API behavior: search returns multiple results containing 'onion',
+      // but exact match exists (case-insensitive)
+      mockClient.searchFood.mockResolvedValue([
+        { id: 42, name: 'onion', plural_name: 'onions' },
+        { id: 43, name: 'green onion', plural_name: 'green onions' },
+        { id: 44, name: 'onion powder' }
+      ]);
 
       await expect(handlers.create({ name: 'onion' }, undefined)).rejects.toThrow('entity_already_exists');
       await expect(handlers.create({ name: 'onion' }, undefined)).rejects.toThrow('42'); // Check ID is included
     });
 
     it('should throw generic error when API call fails', async () => {
-      // Food doesn't exist (search returns empty)
-      mockClient.searchFood.mockResolvedValue([]);
+      // Food doesn't exist: search returns results containing query but no exact match
+      mockClient.searchFood.mockResolvedValue([
+        { id: 200, name: 'some_newfood_variety' }
+      ]);
       mockClient.createFood.mockRejectedValue(new Error('Internal server error'));
 
       await expect(handlers.create({ name: 'newfood' }, undefined)).rejects.toThrow();
     });
 
     it('should be case-insensitive when checking for duplicates', async () => {
-      // Food exists with different case
-      mockClient.searchFood.mockResolvedValue([{ id: 99, name: 'Tomato', plural_name: 'tomatoes' }]);
+      // Real API: search is case-insensitive and returns matches containing the query
+      mockClient.searchFood.mockResolvedValue([
+        { id: 99, name: 'Tomato', plural_name: 'tomatoes' },
+        { id: 100, name: 'tomato sauce', plural_name: 'tomato sauces' },
+        { id: 101, name: 'cherry tomato', plural_name: 'cherry tomatoes' }
+      ]);
 
       await expect(handlers.create({ name: 'tomato' }, undefined)).rejects.toThrow('entity_already_exists');
       await expect(handlers.create({ name: 'tomato' }, undefined)).rejects.toThrow('99'); // Check ID is included

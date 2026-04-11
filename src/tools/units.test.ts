@@ -73,9 +73,12 @@ describe('Unit Tools', () => {
 
   describe('search', () => {
     it('should search units by query', async () => {
+      // Real API: returns units where name contains query (fuzzy search)
       const mockResponse: TandoorUnit[] = [
         { id: 1, name: 'cup' },
-        { id: 2, name: 'cupful' }
+        { id: 2, name: 'cupful' },
+        { id: 3, name: 'cup/2' },
+        { id: 4, name: '1/4 cup' }
       ];
 
       mockClient.searchUnit.mockResolvedValue(mockResponse);
@@ -83,13 +86,16 @@ describe('Unit Tools', () => {
       const result = await handlers.search({ query: 'cup' }, undefined);
 
       expect(mockClient.searchUnit).toHaveBeenCalledWith('cup');
+      // Returns all results containing 'cup'
       expect(result.content[0].text).toContain('"name": "cup"');
+      expect(result.content[0].text).toContain('"name": "cupful"');
     });
 
     it('should return empty results for no matches', async () => {
+      // Real API may return unrelated results, but code filters for exact match
       mockClient.searchUnit.mockResolvedValue([]);
 
-      const result = await handlers.search({ query: 'xyz123' }, undefined);
+      const result = await handlers.search({ query: 'xyz123nonexistent' }, undefined);
 
       expect(result.content[0].text).toBe('[]');
     });
@@ -109,8 +115,11 @@ describe('Unit Tools', () => {
 
   describe('create', () => {
     it('should create a new unit', async () => {
-      // Unit doesn't exist (search returns empty)
-      mockClient.searchUnit.mockResolvedValue([]);
+      // Real API: search returns units containing query, but no exact match
+      mockClient.searchUnit.mockResolvedValue([
+        { id: 100, name: 'pinch of something' },
+        { id: 101, name: 'test_pinch_unit' }
+      ]);
 
       const mockResponse: TandoorUnit = { id: 10, name: 'pinch' };
       mockClient.createUnit.mockResolvedValue(mockResponse);
@@ -130,24 +139,34 @@ describe('Unit Tools', () => {
     });
 
     it('should return entity_already_exists error when unit already exists', async () => {
-      // Unit already exists
-      mockClient.searchUnit.mockResolvedValue([{ id: 5, name: 'cup' }]);
+      // Real API: search returns units containing 'cup', exact match exists
+      mockClient.searchUnit.mockResolvedValue([
+        { id: 5, name: 'cup' },
+        { id: 6, name: 'cupful' },
+        { id: 7, name: '1/4 cup' }
+      ]);
 
       await expect(handlers.create({ name: 'cup' }, undefined)).rejects.toThrow('entity_already_exists');
       await expect(handlers.create({ name: 'cup' }, undefined)).rejects.toThrow('5'); // Check ID is included
     });
 
     it('should throw generic error when API call fails', async () => {
-      // Unit doesn't exist (search returns empty)
-      mockClient.searchUnit.mockResolvedValue([]);
+      // Unit doesn't exist: search returns results containing query but no exact match
+      mockClient.searchUnit.mockResolvedValue([
+        { id: 200, name: 'some_dash_variety' }
+      ]);
       mockClient.createUnit.mockRejectedValue(new Error('Internal server error'));
 
       await expect(handlers.create({ name: 'dash' }, undefined)).rejects.toThrow();
     });
 
     it('should be case-insensitive when checking for duplicates', async () => {
-      // Unit exists with different case
-      mockClient.searchUnit.mockResolvedValue([{ id: 88, name: 'Gram' }]);
+      // Real API: search returns case-insensitive matches containing query
+      mockClient.searchUnit.mockResolvedValue([
+        { id: 88, name: 'Gram' },
+        { id: 89, name: 'grams' },
+        { id: 90, name: 'kilogram' }
+      ]);
 
       await expect(handlers.create({ name: 'gram' }, undefined)).rejects.toThrow('entity_already_exists');
       await expect(handlers.create({ name: 'gram' }, undefined)).rejects.toThrow('88'); // Check ID is included

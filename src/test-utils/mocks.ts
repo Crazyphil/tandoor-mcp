@@ -81,6 +81,8 @@ export function createMockImportResult(overrides: Partial<ImportResult> = {}): I
 
 /**
  * Create a mock PaginatedResponse for foods
+ *
+ * Mimics real Tandoor API response structure including timestamp field
  */
 export function createMockFoodsResponse(
   foods: TandoorFood[] = [],
@@ -93,12 +95,16 @@ export function createMockFoodsResponse(
     page_size: 20,
     has_next: false,
     has_previous: false,
+    // Note: Real API also includes a timestamp field, but it's not in the TypeScript type
+    // so we don't include it here to maintain type compatibility
     ...overrides
   };
 }
 
 /**
  * Create a mock PaginatedResponse for units
+ *
+ * Mimics real Tandoor API response structure
  */
 export function createMockUnitsResponse(
   units: TandoorUnit[] = [],
@@ -117,6 +123,8 @@ export function createMockUnitsResponse(
 
 /**
  * Create a mock PaginatedResponse for keywords
+ *
+ * Mimics real Tandoor API response structure
  */
 export function createMockKeywordsResponse(
   keywords: TandoorKeyword[] = [],
@@ -135,6 +143,10 @@ export function createMockKeywordsResponse(
 
 /**
  * Create a mock PaginatedResponse for recipes
+ *
+ * Mimics real Tandoor API response structure
+ * Note: Recipe search returns count: 0 and empty results for non-existent queries
+ * (unlike foods/units/keywords which return fuzzy matches)
  */
 export function createMockRecipesResponse(
   recipes: TandoorRecipeResponse[] = [],
@@ -153,6 +165,12 @@ export function createMockRecipesResponse(
 
 /**
  * Common food fixtures
+ *
+ * Real API returns many more fields, but these are the essential ones
+ * used by the MCP tools. The real API includes: description, recipe,
+ * url, properties, properties_food_amount, properties_food_unit,
+ * fdc_id, food_onhand, supermarket_category, parent, numchild,
+ * inherit_fields, full_name, ignore_shopping, substitute, etc.
  */
 export const foodFixtures = {
   onion: { id: 1, name: 'onion', plural_name: 'onions' },
@@ -163,16 +181,22 @@ export const foodFixtures = {
 
 /**
  * Common unit fixtures
+ *
+ * Real API also returns: plural_name, description, base_unit, open_data_slug
+ * The plural_name is often null in the real API for units
  */
 export const unitFixtures = {
-  cup: { id: 1, name: 'cup' },
-  tsp: { id: 2, name: 'tsp' },
-  tbsp: { id: 3, name: 'tbsp' },
-  gram: { id: 4, name: 'g' }
+  cup: { id: 1, name: 'cup', plural_name: 'cups' },
+  tsp: { id: 2, name: 'tsp', plural_name: null },
+  tbsp: { id: 3, name: 'tbsp', plural_name: null },
+  gram: { id: 4, name: 'g', plural_name: 'g' }
 };
 
 /**
  * Common keyword fixtures
+ *
+ * Real API also returns: label, description, parent, numchild, full_name,
+ * created_at, updated_at fields. The label is usually the same as name.
  */
 export const keywordFixtures = {
   dinner: { id: 1, name: 'dinner' },

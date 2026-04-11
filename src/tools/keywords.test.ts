@@ -73,9 +73,11 @@ describe('Keyword Tools', () => {
 
   describe('search', () => {
     it('should search keywords by query', async () => {
+      // Real API: returns keywords where name contains query (fuzzy search)
       const mockResponse: TandoorKeyword[] = [
         { id: 1, name: 'Italian' },
-        { id: 2, name: 'Indian' }
+        { id: 2, name: 'Italian dinner' },
+        { id: 3, name: 'italian pasta' }
       ];
 
       mockClient.searchKeyword.mockResolvedValue(mockResponse);
@@ -83,13 +85,16 @@ describe('Keyword Tools', () => {
       const result = await handlers.search({ query: 'Italian' }, undefined);
 
       expect(mockClient.searchKeyword).toHaveBeenCalledWith('Italian');
+      // Returns all results containing 'Italian'
       expect(result.content[0].text).toContain('"name": "Italian"');
+      expect(result.content[0].text).toContain('"name": "Italian dinner"');
     });
 
     it('should return empty results for no matches', async () => {
+      // Real API may return results where query is substring in other names
       mockClient.searchKeyword.mockResolvedValue([]);
 
-      const result = await handlers.search({ query: 'xyz123' }, undefined);
+      const result = await handlers.search({ query: 'xyz123nonexistent' }, undefined);
 
       expect(result.content[0].text).toBe('[]');
     });
@@ -109,8 +114,11 @@ describe('Keyword Tools', () => {
 
   describe('create', () => {
     it('should create a new keyword', async () => {
-      // Keyword doesn't exist (search returns empty)
-      mockClient.searchKeyword.mockResolvedValue([]);
+      // Real API: search returns keywords containing query, but no exact match
+      mockClient.searchKeyword.mockResolvedValue([
+        { id: 100, name: 'gluten-free bread' },
+        { id: 101, name: 'test_gluten_free_keyword' }
+      ]);
 
       const mockResponse: TandoorKeyword = { id: 10, name: 'gluten-free' };
       mockClient.createKeyword.mockResolvedValue(mockResponse);
@@ -130,16 +138,22 @@ describe('Keyword Tools', () => {
     });
 
     it('should return entity_already_exists error when keyword already exists', async () => {
-      // Keyword already exists
-      mockClient.searchKeyword.mockResolvedValue([{ id: 3, name: 'Italian' }]);
+      // Real API: search returns keywords containing 'Italian', exact match exists
+      mockClient.searchKeyword.mockResolvedValue([
+        { id: 3, name: 'Italian' },
+        { id: 4, name: 'Italian dinner' },
+        { id: 5, name: 'italian recipe' }
+      ]);
 
       await expect(handlers.create({ name: 'Italian' }, undefined)).rejects.toThrow('entity_already_exists');
       await expect(handlers.create({ name: 'Italian' }, undefined)).rejects.toThrow('3'); // Check ID is included
     });
 
     it('should throw generic error when API call fails', async () => {
-      // Keyword doesn't exist (search returns empty)
-      mockClient.searchKeyword.mockResolvedValue([]);
+      // Keyword doesn't exist: search returns results containing query but no exact match
+      mockClient.searchKeyword.mockResolvedValue([
+        { id: 200, name: 'some_healthy_variety' }
+      ]);
       mockClient.createKeyword.mockRejectedValue(new Error('Internal server error'));
 
       await expect(handlers.create({ name: 'healthy' }, undefined)).rejects.toThrow();

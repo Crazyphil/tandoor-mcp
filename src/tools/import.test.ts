@@ -54,38 +54,90 @@ describe('RecipeImporter', () => {
         has_previous: false
       }),
       // New search methods (used by EntityResolver)
+      // Mimics real Tandoor API: search returns foods where name CONTAINS the query (fuzzy search)
+      // The EntityResolver then filters for exact matches within those results
       searchFood: jest.fn().mockImplementation((query: string) => {
-        const foods: Record<string, { id: number; name: string; plural_name?: string }[]> = {
-          'spaghetti': [{ id: 1, name: 'spaghetti', plural_name: 'spaghetti' }],
-          'bacon': [{ id: 2, name: 'bacon', plural_name: 'bacon' }],
-          'pasta': [{ id: 3, name: 'pasta', plural_name: 'pasta' }],
-          'ingredient': [{ id: 4, name: 'ingredient', plural_name: 'ingredients' }],
-          'onion': [{ id: 5, name: 'onion', plural_name: 'onions' }],
-          'tomato': [{ id: 6, name: 'tomato', plural_name: 'tomatoes' }],
-          'salt': [{ id: 7, name: 'salt', plural_name: 'salt' }],
-          'unknownfood123': [],
-          'cup': [],  // unit search shouldn't find foods
-        };
-        return Promise.resolve(foods[query.toLowerCase()] || []);
+        const normalizedQuery = query.toLowerCase().trim();
+        const allFoods: { id: number; name: string; plural_name?: string | null }[] = [
+          { id: 1, name: 'spaghetti', plural_name: 'spaghetti' },
+          { id: 2, name: 'bacon', plural_name: 'bacon' },
+          { id: 3, name: 'pasta', plural_name: 'pasta' },
+          { id: 4, name: 'ingredient', plural_name: 'ingredients' },
+          { id: 5, name: 'onion', plural_name: 'onions' },
+          { id: 6, name: 'tomato', plural_name: 'tomatoes' },
+          { id: 7, name: 'salt', plural_name: 'salt' },
+          // Additional foods to simulate fuzzy search behavior
+          { id: 8, name: 'green onion', plural_name: 'green onions' },
+          { id: 9, name: 'cherry tomato', plural_name: 'cherry tomatoes' },
+          { id: 10, name: 'tomato sauce', plural_name: null },
+          { id: 11, name: 'coconut milk', plural_name: null },
+          { id: 12, name: 'almond milk', plural_name: null },
+          { id: 13, name: 'soy milk', plural_name: null },
+          { id: 14, name: 'whole milk', plural_name: null },
+          { id: 15, name: 'olive oil', plural_name: null },
+          { id: 16, name: 'vegetable oil', plural_name: null },
+          { id: 17, name: 'canola oil', plural_name: null },
+          { id: 18, name: 'coconut oil', plural_name: null },
+          { id: 19, name: 'onion powder', plural_name: null },
+          { id: 20, name: 'garlic powder', plural_name: null },
+        ];
+
+        // Real API: returns foods where name contains the query (case-insensitive)
+        return Promise.resolve(
+          allFoods.filter(f => f.name.toLowerCase().includes(normalizedQuery))
+        );
       }),
+      // Mimics real Tandoor API: search returns units where name CONTAINS the query (fuzzy search)
       searchUnit: jest.fn().mockImplementation((query: string) => {
-        const units: Record<string, { id: number; name: string; plural_name?: string }[]> = {
-          'cup': [{ id: 2, name: 'cup' }],
-          'cups': [{ id: 2, name: 'cup' }],
-          'g': [{ id: 1, name: 'g' }],
-          'gram': [],
-        };
-        return Promise.resolve(units[query.toLowerCase()] || []);
+        const normalizedQuery = query.toLowerCase().trim();
+        const allUnits: { id: number; name: string; plural_name?: string | null }[] = [
+          { id: 1, name: 'g', plural_name: 'g' },
+          { id: 2, name: 'cup', plural_name: 'cups' },
+          { id: 3, name: 'tsp', plural_name: null },
+          { id: 4, name: 'tbsp', plural_name: null },
+          { id: 5, name: 'ml', plural_name: 'ml' },
+          { id: 6, name: 'l', plural_name: 'l' },
+          { id: 7, name: 'kg', plural_name: 'kg' },
+          { id: 8, name: 'oz', plural_name: 'oz' },
+          { id: 9, name: 'lb', plural_name: 'lbs' },
+          { id: 10, name: 'pinch', plural_name: null },
+          { id: 11, name: 'dash', plural_name: null },
+          { id: 12, name: 'drop', plural_name: null },
+          // Units that simulate fuzzy matching (contain 'cup', 'gram', etc.)
+          { id: 100, name: '1/4 cup', plural_name: '1/4 cups' },
+          { id: 101, name: '1/2 cup', plural_name: '1/2 cups' },
+          { id: 102, name: '1/3 cup', plural_name: '1/3 cups' },
+        ];
+
+        // Real API: returns units where name contains the query (case-insensitive)
+        return Promise.resolve(
+          allUnits.filter(u => u.name.toLowerCase().includes(normalizedQuery))
+        );
       }),
+      // Mimics real Tandoor API: search returns keywords where name CONTAINS the query (fuzzy search)
       searchKeyword: jest.fn().mockImplementation((query: string) => {
-        const keywords: Record<string, { id: number; name: string }[]> = {
-          'italian': [{ id: 10, name: 'italian' }],
-          'vegetarian': [{ id: 11, name: 'vegetarian' }],
-          'main course': [{ id: 12, name: 'main course' }],
-          'dinner': [{ id: 13, name: 'dinner' }],
-          'easy': [{ id: 14, name: 'easy' }],
-        };
-        return Promise.resolve(keywords[query.toLowerCase()] || []);
+        const normalizedQuery = query.toLowerCase().trim();
+        const allKeywords: { id: number; name: string }[] = [
+          { id: 10, name: 'italian' },
+          { id: 11, name: 'vegetarian' },
+          { id: 12, name: 'main course' },
+          { id: 13, name: 'dinner' },
+          { id: 14, name: 'easy' },
+          { id: 15, name: 'breakfast' },
+          { id: 16, name: 'lunch' },
+          { id: 17, name: 'dessert' },
+          { id: 18, name: 'snack' },
+          { id: 19, name: 'quick dinner' },
+          { id: 20, name: 'italian dinner' },
+          { id: 21, name: 'italian cuisine' },
+          { id: 22, name: 'vegetarian dinner' },
+          { id: 23, name: 'main dish' },
+        ];
+
+        // Real API: returns keywords where name contains the query (case-insensitive)
+        return Promise.resolve(
+          allKeywords.filter(k => k.name.toLowerCase().includes(normalizedQuery))
+        );
       }),
       createRecipe: jest.fn().mockResolvedValue({
         id: 123,

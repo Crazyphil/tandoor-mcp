@@ -182,15 +182,62 @@ export class RecipeImporter {
     matchReason?: string;
   }> {
     try {
-      // Build search query: prefer source_url if available, otherwise use name
-      const searchQuery = recipe.sourceUrl || recipe.name;
+      // Must have a name to search for duplicates
+      if (!recipe.name || recipe.name.trim() === '') {
+        // Can't check for duplicates without a name - this should have been caught by validation
+        // But if we get here, we won't block the import
+        return { isDuplicate: false };
+      }
+
+      // Search for potential duplicates
+      // Note: The Tandoor API's `query` parameter only searches recipe names/descriptions,
+      // NOT source_url. So we must search by name and then check source_url on results.
+      // Also search with sourceUrl-derived query if available to catch duplicates with different names.
+      const searchQueries: string[] = [recipe.name];
       
-      // Search for existing recipes by name (using query param which searches in name and description)
-      const searchResult = await this.client.searchRecipes({
-        query: searchQuery,
-        page: 1,
-        page_size: 50
-      });
+      // If sourceUrl is available, also search using the URL path to catch duplicates with different names
+      if (recipe.sourceUrl) {
+        try {
+          const url = new URL(recipe.sourceUrl);
+          // Use the last path segment as an additional search term
+          const pathSegments = url.pathname.split('/').filter(s => s.length > 0);
+          if (pathSegments.length > 0) {
+            const lastSegment = pathSegments[pathSegments.length - 1];
+            if (lastSegment.length > 2 && !searchQueries.includes(lastSegment)) {
+              searchQueries.push(lastSegment);
+            }
+          }
+          // Also try the hostname (without www) for broader matching
+          const hostname = url.hostname.replace(/^www\./, '');
+          if (hostname.length > 2 && !searchQueries.includes(hostname)) {
+            searchQueries.push(hostname);
+          }
+        } catch {
+          // Invalid URL, ignore
+        }
+      }
+      
+      // Collect results from all search queries
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const allResults: any[] = [];
+      const seenIds = new Set<number>();
+      
+      for (const query of searchQueries) {
+        const result = await this.client.searchRecipes({
+          query: query,
+          page: 1,
+          page_size: 50
+        });
+        
+        for (const r of result.results) {
+          if (!seenIds.has(r.id)) {
+            seenIds.add(r.id);
+            allResults.push(r);
+          }
+        }
+      }
+      
+      const searchResult = { results: allResults };
 
       // If no results, no duplicate
       if (searchResult.results.length === 0) {

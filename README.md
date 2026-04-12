@@ -163,7 +163,7 @@ Imports a recipe from [schema.org/Recipe](https://schema.org/Recipe) JSON format
 |-------|----------|-------------|
 | `name` | Yes | Recipe name |
 | `recipeIngredient` | Yes | List of ingredients (e.g., `["200g flour", "3 eggs"]`) |
-| `recipeInstructions` | Yes | List of instructions (e.g., `["Mix ingredients", "Bake at 180°C"]`) |
+| `recipeInstructions` | Yes | List of instructions (e.g., `["Mix ingredients", "Bake at 180°C"]` or `HowToStep` objects). See [Per-Step Ingredients](#per-step-ingredients) for advanced usage. |
 | `description` | No | Recipe description |
 | `servings` | No | Number of servings |
 | `sourceUrl` | No | Original recipe URL |
@@ -200,6 +200,36 @@ Imports a recipe from [schema.org/Recipe](https://schema.org/Recipe) JSON format
   "cookTime": "PT30M"
 }
 ```
+
+#### Per-Step Ingredients (Advanced)
+
+By default, all `recipeIngredient` items are placed in the first step. For recipes with **distinct ingredients per step** (e.g., cake + frosting), use the per-step ingredient approach:
+
+**Per-step ingredients (Non-Standard Extension)**
+```json
+{
+  "name": "Chocolate Cake with Frosting",
+  "recipeInstructions": [
+    {
+      "name": "Make the cake",
+      "text": "Mix and bake the cake batter",
+      "recipeIngredient": ["200g flour", "100g sugar", "3 eggs", "100ml milk"]
+    },
+    {
+      "name": "Make the frosting",
+      "text": "Beat butter and sugar until fluffy",
+      "recipeIngredient": ["100g butter", "150g powdered sugar", "50g cocoa powder"]
+    }
+  ]
+}
+```
+
+**Notes**:
+- Per-step `recipeIngredient` is a **non-standard extension** to schema.org (ignored by standard validators)
+- Recipe-level `recipeIngredient` **always** goes to the first step
+- Step-level `recipeIngredient` goes to that specific step
+- First step receives **both** global and step-specific ingredients (global first, then step-specific appended)
+- See [SCHEMA_COMPATIBILITY.md](SCHEMA_COMPATIBILITY.md) for full details
 
 ### `list_all_foods`
 

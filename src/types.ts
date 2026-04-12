@@ -39,6 +39,23 @@ export interface RecipeInstruction {
   '@type'?: string;
   name?: string;
   text?: string;
+  url?: string;
+  image?: string | Record<string, unknown>;
+  /**
+   * **Non-standard extension** - Per-step ingredient definitions.
+   *
+   * When provided, these ingredients are parsed and assigned to this specific step,
+   * bypassing the Recipe-level `recipeIngredient` array.
+   *
+   * Format is identical to `recipeIngredient`: strings in format:
+   *   "[amount] [unit] [food][, note]"
+   *
+   * If this property is used on any step, the Recipe-level `recipeIngredient` is ignored
+   * for all steps. Steps without `recipeIngredient` will have empty ingredient lists.
+   *
+   * @see https://schema.org/recipeIngredient (Recipe-level property)
+   */
+  recipeIngredient?: string[] | string;
 }
 
 export interface TandoorRecipePayload {

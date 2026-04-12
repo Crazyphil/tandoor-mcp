@@ -34,7 +34,7 @@ export const tools: ToolDefinition[] = [
   {
     name: 'import_recipe_from_json',
     title: 'Import recipe from JSON',
-    description: 'Import a recipe from schema.org JSON format into Tandoor. The recipe must be a complete structured JSON object with mandatory fields: name, recipeIngredient, recipeInstructions. All referenced foods, units, and keywords must already exist in Tandoor. Plural forms of foods and units (as defined on the object itself) are acceptable as well, if it aids readability.',
+    description: 'Import a recipe from schema.org JSON format into Tandoor. The recipe must be a complete structured JSON object with mandatory fields: name, recipeIngredient, recipeInstructions. All referenced foods, units, and keywords must already exist in Tandoor. Plural forms of foods and units (as defined on the object itself) are acceptable as well, if it aids readability. NOTE: For per-step ingredients (preferred to per-recipe ingredients for readability), use the non-standard extension "recipeIngredient" property on individual HowToStep objects to define ingredients for each step separately.',
     inputSchema: importRecipeInputSchema
   },
   {

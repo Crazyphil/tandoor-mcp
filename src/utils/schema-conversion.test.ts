@@ -37,7 +37,7 @@ describe('convertSchemaOrgToTandoor', () => {
 
     expect(payload.name).toBe('Simple Pasta');
     expect(payload.description).toBe('A simple pasta dish');
-    expect(payload.ingredients.length).toBe(2);
+    expect(payload.steps[0].ingredients.length).toBe(2);
     expect(payload.steps.length).toBe(2);
   });
 
@@ -133,8 +133,8 @@ describe('convertSchemaOrgToTandoor', () => {
 
     const { payload } = convertSchemaOrgToTandoor(recipe, mockEntityMap);
 
-    expect(payload.ingredients[0].food).toBe(1); // pasta
-    expect(payload.ingredients[1].food).toBe(2); // garlic
+    expect(payload.steps[0].ingredients[0].food).toBe(1); // pasta
+    expect(payload.steps[0].ingredients[1].food).toBe(2); // garlic
   });
 
   it('should map unit names to IDs', () => {
@@ -146,8 +146,8 @@ describe('convertSchemaOrgToTandoor', () => {
 
     const { payload } = convertSchemaOrgToTandoor(recipe, mockEntityMap);
 
-    expect(payload.ingredients[0].unit).toBe(3); // cup
-    expect(payload.ingredients[1].unit).toBe(2); // teaspoon
+    expect(payload.steps[0].ingredients[0].unit).toBe(3); // cup
+    expect(payload.steps[0].ingredients[1].unit).toBe(2); // teaspoon
   });
 
   it('should track missing food in missingEntities', () => {
@@ -273,8 +273,8 @@ describe('convertSchemaOrgToTandoor', () => {
 
     const { payload } = convertSchemaOrgToTandoor(recipe, mockEntityMap);
 
-    expect(payload.ingredients[0].amount).toBe(1.5);
-    expect(payload.ingredients[1].amount).toBe(100);
+    expect(payload.steps[0].ingredients[0].amount).toBe(1.5);
+    expect(payload.steps[0].ingredients[1].amount).toBe(100);
   });
 
   it('should track missing foods in missingEntities when no amounts provided', () => {
@@ -290,7 +290,8 @@ describe('convertSchemaOrgToTandoor', () => {
     expect(missingEntities.foods).toContain('cumin');
     expect(missingEntities.foods).toContain('paprika');
     // No ingredients should be in the payload since foods are missing
-    expect(payload.ingredients.length).toBe(0);
+    // All ingredients missing, but steps[0] should still have empty ingredients array
+    expect(payload.steps[0].ingredients.length).toBe(0);
   });
 
   it('should convert instructions into ordered steps', () => {
@@ -558,11 +559,11 @@ describe('convertSchemaOrgToTandoor', () => {
 
     const { payload } = convertSchemaOrgToTandoor(recipe, mockEntityMapWithPlurals);
 
-    expect(payload.ingredients.length).toBe(1);
-    expect(payload.ingredients[0].amount).toBe(2);
-    expect(payload.ingredients[0].unit).toBe(3); // cups -> cup ID
-    expect(payload.ingredients[0].food).toBe(1); // pasta
-    expect(payload.ingredients[0].original_text).toBe('2 cups pasta');
+    expect(payload.steps[0].ingredients.length).toBe(1);
+    expect(payload.steps[0].ingredients[0].amount).toBe(2);
+    expect(payload.steps[0].ingredients[0].unit).toBe(3); // cups -> cup ID
+    expect(payload.steps[0].ingredients[0].food).toBe(1); // pasta
+    expect(payload.steps[0].ingredients[0].original_text).toBe('2 cups pasta');
   });
 
   it('should match plural food forms in ingredients', () => {
@@ -583,11 +584,11 @@ describe('convertSchemaOrgToTandoor', () => {
 
     const { payload } = convertSchemaOrgToTandoor(recipe, mockEntityMapWithPlurals);
 
-    expect(payload.ingredients.length).toBe(1);
-    expect(payload.ingredients[0].amount).toBe(3);
-    expect(payload.ingredients[0].food).toBe(5); // tomatoes -> tomato ID
-    expect(payload.ingredients[0].note).toBe('diced');
-    expect(payload.ingredients[0].original_text).toBe('3 tomatoes, diced');
+    expect(payload.steps[0].ingredients.length).toBe(1);
+    expect(payload.steps[0].ingredients[0].amount).toBe(3);
+    expect(payload.steps[0].ingredients[0].food).toBe(5); // tomatoes -> tomato ID
+    expect(payload.steps[0].ingredients[0].note).toBe('diced');
+    expect(payload.steps[0].ingredients[0].original_text).toBe('3 tomatoes, diced');
   });
 
   it('should match both plural units and foods in same ingredient', () => {
@@ -609,11 +610,11 @@ describe('convertSchemaOrgToTandoor', () => {
 
     const { payload } = convertSchemaOrgToTandoor(recipe, mockEntityMapWithPlurals);
 
-    expect(payload.ingredients.length).toBe(1);
-    expect(payload.ingredients[0].amount).toBe(2);
-    expect(payload.ingredients[0].unit).toBe(3); // cups -> cup ID
-    expect(payload.ingredients[0].food).toBe(5); // tomatoes -> tomato ID
-    expect(payload.ingredients[0].original_text).toBe('2 cups tomatoes');
+    expect(payload.steps[0].ingredients.length).toBe(1);
+    expect(payload.steps[0].ingredients[0].amount).toBe(2);
+    expect(payload.steps[0].ingredients[0].unit).toBe(3); // cups -> cup ID
+    expect(payload.steps[0].ingredients[0].food).toBe(5); // tomatoes -> tomato ID
+    expect(payload.steps[0].ingredients[0].original_text).toBe('2 cups tomatoes');
   });
 
   it('should set no_amount for ingredients without amounts', () => {
@@ -625,14 +626,174 @@ describe('convertSchemaOrgToTandoor', () => {
 
     const { payload } = convertSchemaOrgToTandoor(recipe, mockEntityMap);
 
-    expect(payload.ingredients.length).toBe(1);
-    expect(payload.ingredients[0].food).toBe(4); // salt
+    expect(payload.steps[0].ingredients.length).toBe(1);
+    expect(payload.steps[0].ingredients[0].food).toBe(4); // salt
     // Real API requires 'amount' and 'unit' fields always.
     // When no_amount is true, amount should be 0 and unit should be a valid ID.
-    expect(payload.ingredients[0].amount).toBe(0);
-    expect(payload.ingredients[0].unit).toBeDefined();
-    expect(payload.ingredients[0].no_amount).toBe(true);
-    expect(payload.ingredients[0].note).toBe('to taste');
-    expect(payload.ingredients[0].original_text).toBe('salt, to taste');
+    expect(payload.steps[0].ingredients[0].amount).toBe(0);
+    expect(payload.steps[0].ingredients[0].unit).toBeDefined();
+    expect(payload.steps[0].ingredients[0].no_amount).toBe(true);
+    expect(payload.steps[0].ingredients[0].note).toBe('to taste');
+    expect(payload.steps[0].ingredients[0].original_text).toBe('salt, to taste');
+  });
+
+  it('should handle per-step recipeIngredient (non-standard extension)', () => {
+    const mockEntityMapWithFrosting = {
+      ...mockEntityMap,
+      foodIdMap: new Map([
+        ...mockEntityMap.foodIdMap,
+        ['flour', 10],
+        ['sugar', 11],
+        ['eggs', 12],
+        ['butter', 13]
+      ])
+    };
+
+    const recipe: SchemaOrgRecipe = {
+      name: 'Cake with Frosting',
+      recipeIngredient: ['200 gram flour', '100 gram sugar', '3 eggs'], // global ingredients
+      recipeInstructions: [
+        {
+          '@type': 'HowToStep',
+          name: 'Make the batter',
+          text: 'Mix dry and wet ingredients',
+          recipeIngredient: ['200 gram flour', '100 gram sugar', '3 eggs'] // step-specific
+        },
+        {
+          '@type': 'HowToStep',
+          name: 'Make the frosting',
+          text: 'Beat butter and sugar',
+          recipeIngredient: ['100 gram butter', '150 gram sugar'] // step-specific only
+        },
+        {
+          '@type': 'HowToStep',
+          name: 'Bake',
+          text: 'Bake at 180°C' // no step-specific ingredients
+        }
+      ]
+    };
+
+    const { payload, field_transformations } = convertSchemaOrgToTandoor(recipe, mockEntityMapWithFrosting);
+
+    expect(payload.steps).toHaveLength(3);
+
+    // Step 0: global + step-specific
+    expect(payload.steps[0].ingredients.length).toBe(6); // 3 global + 3 step-specific
+    expect(field_transformations.some(t => t.includes('3 global ingredient(s)'))).toBe(true);
+    // Note: step-specific ingredients are 1:1 mapped - no field transformation needed
+
+    // Step 1: step-specific only
+    expect(payload.steps[1].ingredients.length).toBe(2);
+
+    // Step 2: no step-specific, only global (which went to step 0, so step 2 has 0)
+    expect(payload.steps[2].ingredients.length).toBe(0);
+  });
+
+  it('should handle only per-step recipeIngredient without global recipeIngredient', () => {
+    const mockEntityMapExtended = {
+      ...mockEntityMap,
+      foodIdMap: new Map([
+        ...mockEntityMap.foodIdMap,
+        ['cream', 20],
+        ['cheese', 21],
+        ['pasta', 1],
+        ['water', 22]
+      ]),
+      unitIdMap: new Map([
+        ...mockEntityMap.unitIdMap,
+        ['ml', 10],
+        ['l', 11]
+      ])
+    };
+
+    const recipe: SchemaOrgRecipe = {
+      name: 'Two-Component Dish',
+      recipeIngredient: [], // no global ingredients
+      recipeInstructions: [
+        {
+          '@type': 'HowToStep',
+          name: 'Sauce',
+          text: 'Make the sauce',
+          recipeIngredient: ['200 ml cream', '50 gram cheese']
+        },
+        {
+          '@type': 'HowToStep',
+          name: 'Pasta',
+          text: 'Cook the pasta',
+          recipeIngredient: ['300 gram pasta', '1 l water']
+        }
+      ]
+    };
+
+    const { payload, field_transformations } = convertSchemaOrgToTandoor(recipe, mockEntityMapExtended);
+
+    // No global ingredients to add to step 0
+    expect(payload.steps[0].ingredients.length).toBe(2); // only step-specific for step 1
+    expect(payload.steps[1].ingredients.length).toBe(2); // step-specific for step 2
+
+    // Should not have global ingredient transformation message (no global ingredients provided)
+    expect(field_transformations.some(t => t.includes('global ingredient'))).toBe(false);
+    // Note: step-specific ingredients are 1:1 mapped - no field transformation needed
+  });
+
+  it('should handle only global recipeIngredient without per-step ingredients', () => {
+    const recipe: SchemaOrgRecipe = {
+      name: 'Simple Recipe',
+      recipeIngredient: ['2 cup pasta', '1 teaspoon salt'], // Use singular unit names to match mockEntityMap
+      recipeInstructions: ['Cook pasta', 'Season and serve']
+    };
+
+    const { payload, field_transformations } = convertSchemaOrgToTandoor(recipe, mockEntityMap);
+
+    // All ingredients go to step 0
+    expect(payload.steps[0].ingredients.length).toBe(2);
+    expect(payload.steps[1].ingredients.length).toBe(0);
+
+    expect(field_transformations.some(t => t.includes('2 global ingredient(s)'))).toBe(true);
+    // Note: no step-specific ingredients in this test - no related field transformation
+  });
+
+  it('should combine global and step-specific ingredients on first step correctly', () => {
+    const mockEntityMapExtended = {
+      ...mockEntityMap,
+      foodIdMap: new Map([
+        ...mockEntityMap.foodIdMap,
+        ['base', 50],
+        ['extra', 51],
+        ['topping', 52]
+      ])
+    };
+
+    const recipe: SchemaOrgRecipe = {
+      name: 'Recipe with Base',
+      recipeIngredient: ['100 gram base', '1 teaspoon extra'], // global ingredients
+      recipeInstructions: [
+        {
+          '@type': 'HowToStep',
+          name: 'Base preparation',
+          text: 'Prepare the base',
+          recipeIngredient: ['50 gram topping'] // step-specific for step 0
+        },
+        {
+          '@type': 'HowToStep',
+          name: 'Topping',
+          text: 'Add topping',
+          recipeIngredient: ['200 gram base'] // step-specific for step 1
+        }
+      ]
+    };
+
+    const { payload } = convertSchemaOrgToTandoor(recipe, mockEntityMapExtended);
+
+    // Step 0: 2 global + 1 step-specific = 3 ingredients
+    expect(payload.steps[0].ingredients.length).toBe(3);
+
+    // Step 1: 0 global + 1 step-specific = 1 ingredient
+    expect(payload.steps[1].ingredients.length).toBe(1);
+
+    // Verify order: global first, then step-specific
+    expect(payload.steps[0].ingredients[0].food).toBe(50); // base (global)
+    expect(payload.steps[0].ingredients[1].food).toBe(51); // extra (global)
+    expect(payload.steps[0].ingredients[2].food).toBe(52); // topping (step-specific for step 0)
   });
 });

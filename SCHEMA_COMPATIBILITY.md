@@ -19,7 +19,7 @@ This document maps schema.org/Recipe fields to Tandoor's data model, documenting
 | `name` | `Recipe.name` | ✅ | Direct string mapping. Required field. |
 | `description` | `Recipe.description` | ✅ | Direct string mapping. Optional. |
 | `recipeIngredient` | `Ingredient` (via `steps[].ingredients`) | ✅ | Parsed into structured `{amount, unit, food, note}`. See [Ingredient Parsing](#ingredient-parsing). |
-| `recipeInstructions` | `Step` objects | 📝 | String array: split into ordered steps. `HowToStep` objects: `text` → `instruction`, `name` → `name`. `HowToSection` (nested): ⚠️ NOT IMPLEMENTED - flattened. |
+| `recipeInstructions` | `Step` objects | 📝 | String array: split into ordered steps. `HowToStep` objects: `text` → `instruction`, `name` → `name`. `HowToSection` (nested): ⚠️ NOT IMPLEMENTED - flattened. **Extension**: Steps can have `recipeIngredient` array to define per-step ingredients (bypasses Recipe-level `recipeIngredient`). |
 | `recipeYield` | `Recipe.servings` + `Recipe.servings_text` | 🔀 | If number: stored as `servings`. If string: number extracted as `servings`, remainder as `servings_text` (e.g., "4 servings" → servings: 4, servings_text: "servings"; "2 loaves" → servings: 2, servings_text: "loaves"). |
 | `servings` | `Recipe.servings` | ✅ | Direct integer mapping. Preferred over `recipeYield`. |
 
@@ -162,7 +162,41 @@ The `parseIsoDuration()` function handles ISO 8601 durations and maps them to re
 - ✅ `HowToStep` with `name`: Mapped to `Step.name`
 - ❌ `HowToSection`: Nested sections are flattened (structure lost)
 
-**Tandoor Support**: Steps have `name` and `instruction` fields; no nested section support.
+**Tandoor Support**: Steps have `name`, `instruction`, and `ingredients` fields; no nested section support.
+
+#### Per-Step Ingredients (Non-Standard Extension)
+
+The Recipe-level `recipeIngredient` property puts all ingredients in the recipe's global list. To support **per-step ingredients** (where different ingredients are used at different steps), this MCP server introduces a **non-standard extension**:
+
+| Property | Scope | Status | Description |
+|----------|-------|--------|-------------|
+| `recipeIngredient` (Step-level) | `HowToStep` | 📝 **Extension** | Per-step ingredient array. These ingredients are assigned to this specific step (in addition to any global ingredients for step 1). Format identical to Recipe-level: `"[amount] [unit] [food][, note]"`. |
+
+**Example**: Per-step ingredients (preferred non-standard extension)
+```json
+{
+  "name": "Layered Cake",
+  "recipeInstructions": [
+    { 
+      "name": "Make the batter",
+      "text": "Mix dry ingredients with wet ingredients",
+      "recipeIngredient": ["200g flour", "100g sugar", "2 eggs"]
+    },
+    { 
+      "name": "Make the frosting",
+      "text": "Beat butter and sugar until fluffy",
+      "recipeIngredient": ["100g butter", "150g powdered sugar"]
+    }
+  ]
+}
+```
+
+**Behavior**:
+- Recipe-level `recipeIngredient` **always** goes to the first step
+- Step-level `recipeIngredient` goes to that specific step
+- First step receives **both**: global ingredients first, then step-specific ingredients appended
+- Other steps receive only their step-specific ingredients
+- This extension will be ignored by standard schema.org validators
 
 ---
 

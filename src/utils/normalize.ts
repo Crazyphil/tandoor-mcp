@@ -78,14 +78,24 @@ export function parseIngredientAmount(ingredientStr: string): { amount: string; 
 
 /**
  * Parse instructions string or array into TandoorStep objects
+ *
+ * Supports per-step ingredients via non-standard 'recipeIngredient' property on steps.
+ * Returns steps and per-step ingredient arrays.
  */
 export function parseInstructions(
   instructions: string | string[] | RecipeInstruction[] | undefined
-): { steps: TandoorStep[]; warnings: string[] } {
+): {
+  steps: TandoorStep[];
+  warnings: string[];
+  stepIngredients: (string[] | undefined)[]; // Per-step ingredient strings (from step.recipeIngredient)
+  hasStepLevelIngredients: boolean; // True if any step has its own recipeIngredient
+} {
   const warnings: string[] = [];
   const steps: TandoorStep[] = [];
+  const stepIngredients: (string[] | undefined)[] = [];
+  let hasStepLevelIngredients = false;
 
-  let instructionList: { text: string; name?: string }[] = [];
+  let instructionList: { text: string; name?: string; recipeIngredient?: string[] }[] = [];
 
   if (typeof instructions === 'string') {
     // Simple string - split by period or newline
@@ -99,7 +109,19 @@ export function parseInstructions(
       if (typeof instr === 'string') {
         instructionList.push({ text: instr });
       } else if (typeof instr === 'object' && instr.text) {
-        instructionList.push({ text: instr.text, name: instr.name });
+        const recipeInstr = instr as RecipeInstruction;
+        // Check for step-level recipeIngredient (non-standard extension)
+        const stepLevelIngredients = recipeInstr.recipeIngredient
+          ? (Array.isArray(recipeInstr.recipeIngredient) ? recipeInstr.recipeIngredient : [recipeInstr.recipeIngredient])
+          : undefined;
+        if (stepLevelIngredients && stepLevelIngredients.length > 0) {
+          hasStepLevelIngredients = true;
+        }
+        instructionList.push({
+          text: instr.text,
+          name: instr.name,
+          recipeIngredient: stepLevelIngredients
+        });
       } else if (typeof instr === 'object' && instr.name) {
         // Only name field, use as instruction text
         instructionList.push({ text: instr.name, name: instr.name });
@@ -108,14 +130,17 @@ export function parseInstructions(
   }
 
   // Convert to steps
-  instructionList.forEach((item, index) => {
+  instructionList.forEach((item) => {
     if (item.text.trim().length > 0) {
       steps.push({
         name: item.name,
         instruction: item.text.trim(),
-        order: index,
-        ingredients: [] // Will be filled in during ingredient mapping
+        order: steps.length,
+        ingredients: [] // Will be filled during ingredient processing
       });
+
+      // Step-level ingredient strings (from step.recipeIngredient property)
+      stepIngredients.push(item.recipeIngredient);
     }
   });
 
@@ -123,7 +148,7 @@ export function parseInstructions(
     warnings.push('No valid instructions could be parsed');
   }
 
-  return { steps, warnings };
+  return { steps, warnings, stepIngredients, hasStepLevelIngredients };
 }
 
 /**
@@ -256,33 +281,63 @@ export function convertSchemaOrgToTandoor(
     }
   }
 
-  // Handle instructions
-  const { steps: instructionSteps, warnings: instructionWarnings } = parseInstructions(
+  // Handle instructions - returns steps and per-step ingredient definitions
+  const { steps: instructionSteps, warnings: instructionWarnings, stepIngredients, hasStepLevelIngredients } = parseInstructions(
     recipe.recipeInstructions || []
   );
-  
+
   // Apply author attribution to last step if present
   let finalSteps = instructionSteps;
   if (recipe.author?.name) {
     finalSteps = appendAuthorToSteps(instructionSteps, recipe.author.name);
     field_transformations.push(`author '${recipe.author.name}' appended to last step as italicized attribution`);
   }
-  
+
   // Add warning for datePublished if present
   if (recipe.datePublished) {
     warnings.push(`datePublished ('${recipe.datePublished}') not supported by Tandoor and has been ignored`);
   }
-  
-  payload.steps = finalSteps;
+
   warnings.push(...instructionWarnings);
 
-  // Handle ingredients
-  const { ingredients, warnings: ingredientWarnings, missingEntities: missingIngredientEntities } = parseIngredients(
+  // Handle ingredients - recipe-level always go to first step, step-level go to specific steps
+  const allStepIngredients: TandoorIngredient[] = [];
+  const allMissingEntities: MissingEntities = { foods: [], units: [], keywords: [] };
+
+  // Step 1: Always parse recipe-level ingredients and add to first step
+  const { ingredients: globalIngredients, warnings: globalWarnings, missingEntities: globalMissing } = parseIngredients(
     recipe.recipeIngredient || [],
     entityMap
   );
-  payload.ingredients = ingredients;
-  warnings.push(...ingredientWarnings);
+  warnings.push(...globalWarnings);
+  allMissingEntities.foods.push(...globalMissing.foods);
+  allMissingEntities.units.push(...globalMissing.units);
+
+  if (globalIngredients.length > 0 && finalSteps.length > 0) {
+    finalSteps[0].ingredients = [...globalIngredients];
+    allStepIngredients.push(...globalIngredients);
+    field_transformations.push(`${globalIngredients.length} global ingredient(s) placed in first step (Recipe.recipeIngredient)`);
+  }
+
+  // Step 2: Parse step-level ingredients and add to each step (appending to first step if it has both)
+  if (hasStepLevelIngredients) {
+    for (let stepIndex = 0; stepIndex < finalSteps.length; stepIndex++) {
+      const stepIngredientStrings = stepIngredients[stepIndex];
+      if (stepIngredientStrings && stepIngredientStrings.length > 0) {
+        const { ingredients, warnings: ingredientWarnings, missingEntities } = parseIngredients(
+          stepIngredientStrings,
+          entityMap
+        );
+        warnings.push(...ingredientWarnings);
+        finalSteps[stepIndex].ingredients.push(...ingredients);
+        allStepIngredients.push(...ingredients);
+        allMissingEntities.foods.push(...missingEntities.foods);
+        allMissingEntities.units.push(...missingEntities.units);
+      }
+    }
+  }
+
+  payload.steps = finalSteps;
 
   // Handle nutrition - map to Tandoor's nutrition JSON field
   if (recipe.nutrition && typeof recipe.nutrition === 'object') {
@@ -292,8 +347,8 @@ export function convertSchemaOrgToTandoor(
 
   // Track all missing entities
   const missingEntities: MissingEntities = {
-    foods: [...missingIngredientEntities.foods],
-    units: [...missingIngredientEntities.units],
+    foods: [...allMissingEntities.foods],
+    units: [...allMissingEntities.units],
     keywords: []
   };
 
@@ -830,21 +885,19 @@ export async function convertSchemaOrgToTandoorAsync(
     }
   }
 
-  // Handle instructions
-  const { steps: instructionSteps } = parseInstructions(
+  // Handle instructions - returns steps and per-step ingredient definitions
+  const { steps: instructionSteps, stepIngredients, hasStepLevelIngredients } = parseInstructions(
     recipe.recipeInstructions || []
   );
-  
+
   let finalSteps = instructionSteps;
   if (recipe.author?.name) {
     finalSteps = appendAuthorToSteps(instructionSteps, recipe.author.name);
     field_transformations.push(`author '${recipe.author.name}' appended to last step as italicized attribution`);
   }
-  
-  payload.steps = finalSteps;
 
   // Handle ingredients using async resolution
-  const ingredients: TandoorIngredient[] = [];
+  const allStepIngredients: TandoorIngredient[] = [];
   const ingredientList = recipe.recipeIngredient || [];
   
   for (let index = 0; index < ingredientList.length; index++) {
@@ -929,8 +982,8 @@ export async function convertSchemaOrgToTandoorAsync(
     // API requires amount and unit always.
     // When no_amount is true, amount should be 0 (not undefined).
     const parsedAmount = amount ? parseFloat(amount) : 0;
-    
-    ingredients.push({
+
+    allStepIngredients.push({
       amount: parsedAmount,
       unit: unitId ?? null, // unit is required but can be null
       food: foodId,
@@ -941,7 +994,99 @@ export async function convertSchemaOrgToTandoorAsync(
     });
   }
 
-  payload.ingredients = ingredients;
+  // Step 1: Always add global ingredients to first step
+  if (allStepIngredients.length > 0 && finalSteps.length > 0) {
+    finalSteps[0].ingredients = [...allStepIngredients];
+    field_transformations.push(`${allStepIngredients.length} global ingredient(s) placed in first step (Recipe.recipeIngredient)`);
+  }
+
+  // Step 2: Parse and add step-level ingredients to each step (appending to first step if it has both)
+  if (hasStepLevelIngredients) {
+    for (let stepIndex = 0; stepIndex < finalSteps.length; stepIndex++) {
+      const stepIngredientStrings = stepIngredients[stepIndex];
+      if (stepIngredientStrings && stepIngredientStrings.length > 0) {
+        // Parse each ingredient for this step
+        const stepParsedIngredients: TandoorIngredient[] = [];
+        for (let idx = 0; idx < stepIngredientStrings.length; idx++) {
+          const ingredientStr = stepIngredientStrings[idx];
+          if (!ingredientStr || typeof ingredientStr !== 'string') {
+            continue;
+          }
+
+          // Parse ingredient (similar logic to main loop above, but inline for simplicity)
+          const [mainPart, ...noteParts] = ingredientStr.split(',');
+          const note = noteParts.length > 0 ? noteParts.join(',').trim() : undefined;
+          const parsed = parseIngredientAmount(mainPart.trim());
+
+          let foodName: string;
+          let amount: string | undefined;
+          let unitId: number | undefined;
+
+          if (parsed) {
+            amount = parsed.amount;
+            const unitAndFood = parsed.unit.trim();
+            let remainder = unitAndFood;
+
+            if (unitAndFood) {
+              const words = unitAndFood.split(/\s+/);
+              for (let i = 0; i < words.length; i++) {
+                const potentialUnit = words.slice(0, i + 1).join(' ').toLowerCase();
+                const unitResult = await entityResolver.findUnit(potentialUnit);
+                if (unitResult) {
+                  unitId = unitResult.id;
+                  remainder = words.slice(i + 1).join(' ');
+                  break;
+                }
+              }
+            }
+            foodName = remainder.trim() || unitAndFood;
+          } else {
+            foodName = mainPart.trim();
+          }
+
+          foodName = foodName.toLowerCase();
+          if (!foodName) {
+            continue;
+          }
+
+          // Look up food ID
+          let foodId: number | undefined;
+          let foodResult = await entityResolver.getFood(foodName);
+          if (!foodResult && foodName.includes(' ')) {
+            const foodWords = foodName.split(/\s+/);
+            for (let i = foodWords.length; i > 0; i--) {
+              const testName = foodWords.slice(0, i).join(' ');
+              foodResult = await entityResolver.getFood(testName);
+              if (foodResult) {
+                break;
+              }
+            }
+          }
+          if (foodResult) {
+            foodId = foodResult.id;
+          }
+
+          if (foodId === undefined) {
+            continue;
+          }
+
+          const parsedAmount = amount ? parseFloat(amount) : 0;
+          stepParsedIngredients.push({
+            amount: parsedAmount,
+            unit: unitId ?? null,
+            food: foodId,
+            note: note,
+            order: idx,
+            original_text: ingredientStr,
+            no_amount: !amount
+          });
+        }
+        finalSteps[stepIndex].ingredients.push(...stepParsedIngredients);
+      }
+    }
+  }
+
+  payload.steps = finalSteps;
 
   // Handle nutrition
   if (recipe.nutrition && typeof recipe.nutrition === 'object') {

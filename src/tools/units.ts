@@ -116,6 +116,18 @@ export function createUnitToolHandlers(client: TandoorApiClient): UnitToolHandle
       const result = await client.createUnit(name);
       return createJsonResponse(result);
     } catch (error) {
+      // If it's already an entity_already_exists error, re-throw it directly
+      if (error instanceof McpError) {
+        const errorMessage = error.message;
+        try {
+          const parsed = JSON.parse(errorMessage);
+          if (parsed.error_code === 'entity_already_exists') {
+            throw error;
+          }
+        } catch {
+          // Not JSON or no error_code, continue with normal handling
+        }
+      }
       // Handle 409 Conflict if Tandoor returns it in the future
       if (isAxiosError(error) && error.response?.status === HTTP_CONFLICT) {
         throw createEntityExistsError('unit', name);

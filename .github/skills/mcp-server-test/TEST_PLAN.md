@@ -534,8 +534,8 @@ Each test includes:
 
 ---
 
-### 5.6 Import with Time Fields and Nutrition
-**Purpose:** Verify ISO 8601 duration parsing and nutrition preservation
+### 5.6 Import with Time Fields, Nutrition, and Per-Step Ingredients
+**Purpose:** Verify ISO 8601 duration parsing, nutrition preservation, AND per-step ingredient distribution
 
 **Input:**
 ```json
@@ -543,11 +543,22 @@ Each test includes:
   "recipe": {
     "name": "Copilot Test Recipe - Extended Fields",
     "recipeIngredient": [
-      "2 cups tomato"
+      "2 cups tomato",
+      "1 onion"
     ],
     "recipeInstructions": [
-      "Prep vegetables for 15 minutes",
-      "Cook for 30 minutes"
+      {
+        "@type": "HowToStep",
+        "name": "Prep",
+        "text": "Prep vegetables for 15 minutes",
+        "recipeIngredient": ["1 tsp olive oil"]
+      },
+      {
+        "@type": "HowToStep",
+        "name": "Cook",
+        "text": "Cook for 30 minutes",
+        "recipeIngredient": ["100g cheese"]
+      }
     ],
     "servings": 4,
     "sourceUrl": "https://test-copilot.example.com/extended",
@@ -566,7 +577,9 @@ Each test includes:
 **Verify:**
 - [ ] Response contains `recipe_id` (positive integer)
 - [ ] `import_status` is `"success"`
-- [ ] `mapping_notes.field_transformations` contains notes about time field handling
+- [ ] `mapping_notes.field_transformations` contains notes about:
+  - time field handling
+  - global ingredients placed in first step (2 global ingredients)
 - [ ] `mapping_notes.warnings` is empty (nutrition stored as-is)
 
 **Record**: Note the `recipe_id` for Test 6.2 (Round-Trip Verification)
@@ -635,8 +648,8 @@ Each test includes:
 
 ---
 
-### 6.2 Verify Extended Fields Recipe (Test 5.6)
-**Purpose:** Verify time fields and nutrition round-trip correctly
+### 6.2 Verify Extended Fields Recipe with Per-Step Ingredients (Test 5.6)
+**Purpose:** Verify time fields, nutrition, AND per-step ingredients round-trip correctly
 
 **Step 1**: Retrieve the recipe using `get_recipe`
 **Input:**
@@ -651,7 +664,10 @@ Each test includes:
 - [ ] `name` matches: `"Copilot Test Recipe - Extended Fields"`
 - [ ] `prepTime`, `cookTime`, or `totalTime` present (may be distributed to steps)
 - [ ] `nutrition` object present with `calories` and `proteinContent`
-- [ ] `recipeIngredient` has 1 item with `amount: 2`, `unit: "cups"`, `food: "tomato"`
+- [ ] `recipeIngredient` has 2 items (global ingredients): tomato and onion
+- [ ] `recipeInstructions` is an array of `HowToStep` objects with:
+  - Step 1: `recipeIngredient` containing `"1 tsp olive oil"`
+  - Step 2: `recipeIngredient` containing `"100g cheese"`
 
 ---
 

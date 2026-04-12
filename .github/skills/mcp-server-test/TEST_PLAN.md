@@ -197,6 +197,8 @@ Each test includes:
 - [ ] `count` reflects filtered results (may be 0 if no matches)
 - [ ] Results respect pagination (max 5 items)
 
+**Available filter parameters**: `query`, `foods`, `foods_and`, `foods_not`, `keywords`, `keywords_and`, `keywords_not`, `rating_gte`, `timescooked_gte`, `all_ingredients_stocked`, `sort_order`, `page`, `page_size`
+
 ---
 
 ### 3.6 get_recipe - Existing Recipe

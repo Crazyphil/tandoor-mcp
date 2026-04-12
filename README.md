@@ -453,17 +453,16 @@ Search for recipes in Tandoor with optional filters. This tool only accepts IDs 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `query` | No | Full-text search string (name, description) |
-| `foods` | No | Array of food IDs to filter recipes containing those foods |
-| `keywords` | No | Array of keyword IDs to filter recipes with those tags |
-| `books` | No | Array of book IDs to filter recipes in those books |
-| `createdby` | No | User ID for recipe creator filter |
+| `foods` | No | Array of food IDs (OR - match recipes containing ANY of these foods) |
+| `foods_and` | No | Array of food IDs (AND - match recipes containing ALL of these foods) |
+| `foods_not` | No | Array of food IDs to exclude (exclude recipes containing ANY of these) |
+| `keywords` | No | Array of keyword IDs (OR - match recipes with ANY of these keywords) |
+| `keywords_and` | No | Array of keyword IDs (AND - match recipes with ALL of these keywords) |
+| `keywords_not` | No | Array of keyword IDs to exclude (exclude recipes with ANY of these) |
 | `rating_gte` | No | Minimum rating filter (0-5) |
-| `rating_lte` | No | Maximum rating filter (0-5) |
 | `timescooked_gte` | No | Minimum times cooked filter |
-| `timescooked_lte` | No | Maximum times cooked filter |
-| `createdon_gte` | No | Minimum creation date (YYYY-MM-DD) |
-| `createdon_lte` | No | Maximum creation date (YYYY-MM-DD) |
-| `sort_order` | No | Sort order: `score`, `-score`, `name`, `-name`, `created`, `-created`, `rating`, `-rating` |
+| `all_ingredients_stocked` | No | Only show recipes that can be made with stocked/on-hand ingredients |
+| `sort_order` | No | Sort order: `score`, `-score`, `name`, `-name`, `rating`, `-rating`, `times_cooked`, `-times_cooked`, `lastcooked`, `-lastcooked` |
 | `page` | No | Page number (default: 1) |
 | `page_size` | No | Results per page (default: 20, max: 100) |
 

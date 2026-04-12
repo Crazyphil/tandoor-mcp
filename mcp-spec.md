@@ -145,21 +145,23 @@ Auth: token query or header (e.g., `Authorization: Token <token>`)
 - **Important**: Keyword names must be used exactly as they appear in the database (case-insensitive match). Use `list_all_keywords()` to see available keywords and their exact names before creating or referencing them in recipes.
 
 ### Tool K: `search_recipes(query_params)` (agent-facing)
-- Input: object with optional search parameters (mimicking Tandoor's advanced search):
+- Input: object with optional search parameters:
   - `query`: string for full-text search (name, description, etc.)
-  - `foods`: array of food **IDs** to filter recipes containing those foods. Use `search_food()` first to resolve food names to IDs.
-  - `keywords`: array of keyword **IDs** to filter recipes with those tags. Use `search_keyword()` first to resolve keyword names to IDs.
-  - `books`: array of book IDs to filter recipes in those books.
-  - `createdby`: user ID for recipes created by that user
-  - `rating_gte`, `rating_lte`: rating filters
-  - `timescooked_gte`, `timescooked_lte`: cooking frequency
-  - `createdon_gte`, `createdon_lte`: date ranges
-  - `sort_order`: e.g., "score", "-score", "name", "-name", etc.
+  - `foods`: array of food **IDs** (OR - match recipes containing ANY of these foods)
+  - `foods_and`: array of food **IDs** (AND - match recipes containing ALL of these foods)
+  - `foods_not`: array of food **IDs** to exclude (exclude recipes containing ANY of these foods)
+  - `keywords`: array of keyword **IDs** (OR - match recipes with ANY of these keywords)
+  - `keywords_and`: array of keyword **IDs** (AND - match recipes with ALL of these keywords)
+  - `keywords_not`: array of keyword **IDs** to exclude (exclude recipes with ANY of these keywords)
+  - `rating_gte`: minimum rating filter (0-5)
+  - `timescooked_gte`: minimum times cooked filter
+  - `all_ingredients_stocked`: boolean - only show recipes that can be made with stocked ingredients
+  - `sort_order`: e.g., "score", "-score", "name", "-name", "rating", "-rating", etc.
   - `page`, `page_size`: pagination
-- Behavior: GET `/api/recipe/` with the provided query parameters. Return paginated list of recipe overviews (id, name, description, image, rating, etc.).
-- Output: `{ results: [recipe_overview], count, page, page_size, has_next, has_previous }` (paginated response).
-- Use case: Check for duplicates by name/source_url, find recipes by ingredients/tags, browse existing recipes.
-- **Important**: This tool only accepts IDs for food/keyword filtering (not names). Agents must resolve names to IDs using `search_food()` and `search_keyword()` before calling this tool.
+- **Important**: Use `search_food()` and `search_keyword()` first to resolve names to IDs before calling this tool.
+- Behavior: GET `/api/recipe/` with the provided query parameters. Return paginated list of recipe overviews.
+- Output: `{ results: [recipe_overview], count, page, page_size, has_next, has_previous }`.
+- Use case: Find recipes by ingredients/tags, browse existing recipes, check for duplicates.
 
 **Input Schema for Tool K** (for reference implementation):
 ```json
@@ -167,17 +169,16 @@ Auth: token query or header (e.g., `Authorization: Token <token>`)
   "type": "object",
   "properties": {
     "query": { "type": "string", "maxLength": 255, "description": "Full-text search string (name, description)" },
-    "foods": { "type": "array", "items": { "type": "integer" }, "description": "Food IDs to filter by (resolved from names via search_food)" },
-    "keywords": { "type": "array", "items": { "type": "integer" }, "description": "Keyword IDs to filter by (resolved from names via search_keyword)" },
-    "books": { "type": "array", "items": { "type": "integer" }, "description": "Book IDs to filter recipes in those books" },
-    "createdby": { "type": "integer", "description": "User ID for recipe creator filter" },
-    "rating_gte": { "type": "number", "minimum": 0, "maximum": 5, "description": "Minimum rating filter" },
-    "rating_lte": { "type": "number", "minimum": 0, "maximum": 5, "description": "Maximum rating filter" },
+    "foods": { "type": "array", "items": { "type": "integer" }, "description": "Food IDs (OR - match recipes with any of these foods)" },
+    "foods_and": { "type": "array", "items": { "type": "integer" }, "description": "Food IDs (AND - match recipes with all of these foods)" },
+    "foods_not": { "type": "array", "items": { "type": "integer" }, "description": "Food IDs to exclude (exclude recipes with any of these foods)" },
+    "keywords": { "type": "array", "items": { "type": "integer" }, "description": "Keyword IDs (OR - match recipes with any of these keywords)" },
+    "keywords_and": { "type": "array", "items": { "type": "integer" }, "description": "Keyword IDs (AND - match recipes with all of these keywords)" },
+    "keywords_not": { "type": "array", "items": { "type": "integer" }, "description": "Keyword IDs to exclude (exclude recipes with any of these keywords)" },
+    "rating_gte": { "type": "number", "minimum": 0, "maximum": 5, "description": "Minimum rating filter (0-5)" },
     "timescooked_gte": { "type": "integer", "minimum": 0, "description": "Minimum times cooked filter" },
-    "timescooked_lte": { "type": "integer", "minimum": 0, "description": "Maximum times cooked filter" },
-    "createdon_gte": { "type": "string", "format": "date", "description": "Minimum creation date (YYYY-MM-DD)" },
-    "createdon_lte": { "type": "string", "format": "date", "description": "Maximum creation date (YYYY-MM-DD)" },
-    "sort_order": { "type": "string", "enum": ["score", "-score", "name", "-name", "created", "-created", "rating", "-rating"], "description": "Sort order; prefix with '-' for descending" },
+    "all_ingredients_stocked": { "type": "boolean", "description": "Only recipes that can be made with stocked/on-hand ingredients" },
+    "sort_order": { "type": "string", "enum": ["score", "-score", "name", "-name", "created_at", "-created_at", "rating", "-rating", "times_cooked", "-times_cooked", "lastcooked", "-lastcooked", "lastviewed", "-lastviewed"], "description": "Sort order; prefix with '-' for descending" },
     "page": { "type": "integer", "minimum": 1, "default": 1, "description": "Page number (1-indexed)" },
     "page_size": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20, "description": "Results per page" }
   },

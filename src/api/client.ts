@@ -133,65 +133,40 @@ export class TandoorApiClient {
   }
 
   /** Search recipes with filters
-   * Full parameter set from Tandoor API. All parameters are optional.
-   * See Tandoor API docs for parameter descriptions.
+   * Simplified parameter set for practical agent use cases.
+   * See Tandoor API docs for underlying parameter descriptions.
    */
   async searchRecipes(params: {
     // Query and basic filters
     query?: string;
     
-    // Food filters (ID arrays)
-    foods?: number[];
-    foods_or?: number[];
-    foods_and?: number[];
-    foods_or_not?: number[];
-    foods_and_not?: number[];
+    // Food filters (ID arrays) - use search_food() to find IDs
+    foods?: number[];         // OR logic - match if any food is in recipe
+    foods_and?: number[];   // AND logic - match if all foods are in recipe
+    foods_or_not?: number[]; // OR logic - exclude if any food is in recipe
     
-    // Keyword filters (ID arrays)
-    keywords?: number[];
-    keywords_or?: number[];
-    keywords_and?: number[];
-    keywords_or_not?: number[];
-    keywords_and_not?: number[];
-    
-    // Book filters
-    books?: number[];
-    
-    // User filter
-    createdby?: number;
+    // Keyword filters (ID arrays) - use search_keyword() to find IDs
+    keywords?: number[];         // OR logic - match if any keyword is in recipe
+    keywords_and?: number[];   // AND logic - match if all keywords are in recipe
+    keywords_or_not?: number[]; // OR logic - exclude if any keyword is in recipe
     
     // Rating filters
-    rating?: number;
-    rating_gte?: number;
-    rating_lte?: number;
+    rating_gte?: number;  // Minimum rating (0-5)
     
     // Times cooked filters
-    timescooked?: number;
-    timescooked_gte?: number;
-    timescooked_lte?: number;
+    timescooked_gte?: number;  // Minimum times cooked
     
-    // Date filters
-    createdon_gte?: string;
-    createdon_lte?: string;
-    lastcooked_gte?: string;
-    lastcooked_lte?: string;
+    // Boolean flags
+    makenow?: boolean;  // Only recipes with stocked/on-hand ingredients
     
     // Sorting
     sort_order?: 'score' | '-score' | 'name' | '-name' | 'created_at' | '-created_at' | 
                   'lastcooked' | '-lastcooked' | 'rating' | '-rating' | 'times_cooked' | 
                   '-times_cooked' | 'lastviewed' | '-lastviewed' | string;
     
-    // Boolean flags
-    new?: boolean;
-    makenow?: boolean;
-    include_children?: boolean;
-    
     // Pagination
     page?: number;
     page_size?: number;
-    
-    // Recent recipes
-    num_recent?: number;
   }): Promise<PaginatedResponse<TandoorRecipeResponse>> {
     const response = await this.client.get<PaginatedResponse<TandoorRecipeResponse>>(
       '/api/recipe/',

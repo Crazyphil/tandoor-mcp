@@ -74,33 +74,17 @@ describe('Recipe Tools', () => {
       }, undefined);
 
       expect(mockClient.searchRecipes).toHaveBeenCalledWith({
+        query: undefined,
         foods: [1, 2],
-        foods_or: undefined,
         foods_and: undefined,
         foods_or_not: undefined,
-        foods_and_not: undefined,
         keywords: [3],
-        keywords_or: undefined,
         keywords_and: undefined,
         keywords_or_not: undefined,
-        keywords_and_not: undefined,
-        books: undefined,
-        createdby: undefined,
-        rating: undefined,
         rating_gte: 4,
-        rating_lte: undefined,
-        timescooked: undefined,
         timescooked_gte: undefined,
-        timescooked_lte: undefined,
-        createdon_gte: undefined,
-        createdon_lte: undefined,
-        lastcooked_gte: undefined,
-        lastcooked_lte: undefined,
         sort_order: undefined,
-        new: undefined,
         makenow: undefined,
-        include_children: undefined,
-        num_recent: undefined,
         page: 1,
         page_size: 20
       });
@@ -123,7 +107,7 @@ describe('Recipe Tools', () => {
       expect(mockClient.searchRecipes).toHaveBeenCalledWith(expect.objectContaining({ sort_order: '-rating' }));
     });
 
-    it('should search with advanced food filters', async () => {
+    it('should search with food filters (OR, AND, NOT)', async () => {
       const mockResponse: PaginatedResponse<TandoorRecipeResponse> = {
         results: [],
         count: 0,
@@ -136,21 +120,19 @@ describe('Recipe Tools', () => {
       mockClient.searchRecipes.mockResolvedValue(mockResponse);
 
       await handlers.search({
-        foods_or: [1, 2],
+        foods: [1, 2],
         foods_and: [3, 4],
-        foods_or_not: [5],
-        foods_and_not: [6]
+        foods_not: [5, 6]
       }, undefined);
 
       expect(mockClient.searchRecipes).toHaveBeenCalledWith(expect.objectContaining({
-        foods_or: [1, 2],
+        foods: [1, 2],
         foods_and: [3, 4],
-        foods_or_not: [5],
-        foods_and_not: [6]
+        foods_or_not: [5, 6]  // mapped from foods_not
       }));
     });
 
-    it('should search with advanced keyword filters', async () => {
+    it('should search with keyword filters (OR, AND, NOT)', async () => {
       const mockResponse: PaginatedResponse<TandoorRecipeResponse> = {
         results: [],
         count: 0,
@@ -163,21 +145,19 @@ describe('Recipe Tools', () => {
       mockClient.searchRecipes.mockResolvedValue(mockResponse);
 
       await handlers.search({
-        keywords_or: [1, 2],
+        keywords: [1, 2],
         keywords_and: [3],
-        keywords_or_not: [4],
-        keywords_and_not: [5]
+        keywords_not: [4, 5]
       }, undefined);
 
       expect(mockClient.searchRecipes).toHaveBeenCalledWith(expect.objectContaining({
-        keywords_or: [1, 2],
+        keywords: [1, 2],
         keywords_and: [3],
-        keywords_or_not: [4],
-        keywords_and_not: [5]
+        keywords_or_not: [4, 5]  // mapped from keywords_not
       }));
     });
 
-    it('should search with rating and timescooked exact filters', async () => {
+    it('should search with rating and timescooked filters', async () => {
       const mockResponse: PaginatedResponse<TandoorRecipeResponse> = {
         results: [{ id: 1, name: 'Test Recipe', keywords: [] }],
         count: 1,
@@ -190,17 +170,17 @@ describe('Recipe Tools', () => {
       mockClient.searchRecipes.mockResolvedValue(mockResponse);
 
       await handlers.search({
-        rating: 5,
-        timescooked: 3
+        rating_gte: 4,
+        timescooked_gte: 5
       }, undefined);
 
       expect(mockClient.searchRecipes).toHaveBeenCalledWith(expect.objectContaining({
-        rating: 5,
-        timescooked: 3
+        rating_gte: 4,
+        timescooked_gte: 5
       }));
     });
 
-    it('should search with boolean flags', async () => {
+    it('should search with all_ingredients_stocked flag', async () => {
       const mockResponse: PaginatedResponse<TandoorRecipeResponse> = {
         results: [],
         count: 0,
@@ -213,19 +193,15 @@ describe('Recipe Tools', () => {
       mockClient.searchRecipes.mockResolvedValue(mockResponse);
 
       await handlers.search({
-        new: true,
-        makenow: true,
-        include_children: true
+        all_ingredients_stocked: true
       }, undefined);
 
       expect(mockClient.searchRecipes).toHaveBeenCalledWith(expect.objectContaining({
-        new: true,
-        makenow: true,
-        include_children: true
+        makenow: true
       }));
     });
 
-    it('should search with num_recent parameter', async () => {
+    it('should search with all_ingredients_stocked parameter', async () => {
       const mockResponse: PaginatedResponse<TandoorRecipeResponse> = {
         results: [],
         count: 0,
@@ -237,9 +213,9 @@ describe('Recipe Tools', () => {
 
       mockClient.searchRecipes.mockResolvedValue(mockResponse);
 
-      await handlers.search({ num_recent: 10 }, undefined);
+      await handlers.search({ all_ingredients_stocked: true }, undefined);
 
-      expect(mockClient.searchRecipes).toHaveBeenCalledWith(expect.objectContaining({ num_recent: 10 }));
+      expect(mockClient.searchRecipes).toHaveBeenCalledWith(expect.objectContaining({ makenow: true }));
     });
 
     it('should return empty results for no matches', async () => {
@@ -255,27 +231,6 @@ describe('Recipe Tools', () => {
       const result = await handlers.search({ query: 'xyz123' }, undefined);
 
       expect(result.content[0].text).toContain('"count": 0');
-    });
-
-    it('should handle lastcooked date filters', async () => {
-      mockClient.searchRecipes.mockResolvedValue({
-        results: [],
-        count: 0,
-        page: 1,
-        page_size: 20,
-        has_next: false,
-        has_previous: false
-      });
-
-      await handlers.search({
-        lastcooked_gte: '2024-01-01',
-        lastcooked_lte: '2024-12-31'
-      }, undefined);
-
-      expect(mockClient.searchRecipes).toHaveBeenCalledWith(expect.objectContaining({
-        lastcooked_gte: '2024-01-01',
-        lastcooked_lte: '2024-12-31'
-      }));
     });
 
     it('should throw error when API call fails', async () => {

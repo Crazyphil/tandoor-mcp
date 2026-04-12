@@ -197,72 +197,40 @@ export const createKeywordInputSchema = z.object({
 /**
  * Input schema for search_recipes tool
  * 
- * All filter parameters supported by the Tandoor RecipeFilter API.
- * See Tandoor API documentation for parameter descriptions.
+ * Simplified filter parameters for practical agent use cases.
+ * See Tandoor API documentation for underlying parameter details.
  */
 export const searchRecipesInputSchema = z.object({
-  /** Free-text search query */
+  /** Free-text search query for recipe name */
   query: z.string().optional(),
 
-  // Food filters (ID arrays) - at least one food must match
-  /** Filter by food IDs (OR - match if any food is in recipe) */
+  // Food filters - use search_food() to find IDs
+  /** Food IDs to include (OR - recipe must contain at least one) */
   foods: z.array(z.number()).optional(),
-  foods_or: z.array(z.number()).optional(),
+  /** Food IDs to include (AND - recipe must contain all) */
   foods_and: z.array(z.number()).optional(),
-  foods_or_not: z.array(z.number()).optional(),
-  foods_and_not: z.array(z.number()).optional(),
+  /** Food IDs to exclude (OR - recipe must not contain any) */
+  foods_not: z.array(z.number()).optional(),
 
-  // Keyword filters (ID arrays) - at least one keyword must match
-  /** Filter by keyword IDs (OR - match if any keyword is in recipe) */
+  // Keyword filters - use search_keyword() to find IDs
+  /** Keyword IDs to include (OR - recipe must have at least one) */
   keywords: z.array(z.number()).optional(),
-  keywords_or: z.array(z.number()).optional(),
+  /** Keyword IDs to include (AND - recipe must have all) */
   keywords_and: z.array(z.number()).optional(),
-  keywords_or_not: z.array(z.number()).optional(),
-  keywords_and_not: z.array(z.number()).optional(),
-
-  /** Filter by recipe book IDs */
-  books: z.array(z.number()).optional(),
-
-  /** Filter by creator user ID */
-  createdby: z.number().optional(),
+  /** Keyword IDs to exclude (OR - recipe must not have any) */
+  keywords_not: z.array(z.number()).optional(),
 
   // Rating filters
-  /** Exact rating (0-5) */
-  rating: z.number().min(0).max(5).optional(),
-  /** Minimum rating (0-5) */
+  /** Minimum rating 0-5 (e.g., 4 for 4 stars and above) */
   rating_gte: z.number().min(0).max(5).optional(),
-  /** Maximum rating (0-5) */
-  rating_lte: z.number().min(0).max(5).optional(),
 
   // Times cooked filters
-  /** Exact times cooked */
-  timescooked: z.number().int().min(0).optional(),
-  /** Minimum times cooked */
+  /** Minimum times cooked (e.g., 5 for recipes cooked at least 5 times) */
   timescooked_gte: z.number().int().min(0).optional(),
-  /** Maximum times cooked */
-  timescooked_lte: z.number().int().min(0).optional(),
-
-  // Date filters
-  /** Minimum creation date (ISO 8601) */
-  createdon_gte: z.string().optional(),
-  /** Maximum creation date (ISO 8601) */
-  createdon_lte: z.string().optional(),
-  /** Minimum last cooked date (ISO 8601) */
-  lastcooked_gte: z.string().optional(),
-  /** Maximum last cooked date (ISO 8601) */
-  lastcooked_lte: z.string().optional(),
 
   // Boolean flags
-  /** Only show new/unseen recipes */
-  new: z.boolean().optional(),
-  /** Only show recipes that can be made now (ingredients on hand) */
-  makenow: z.boolean().optional(),
-  /** Include child objects in search */
-  include_children: z.boolean().optional(),
-
-  // Recent recipes
-  /** Limit to most recent N recipes */
-  num_recent: z.number().int().min(1).optional(),
+  /** Only show recipes that can be made with stocked/on-hand ingredients */
+  all_ingredients_stocked: z.boolean().optional(),
 
   /** Sort order for results. Use prefix - for descending order */
   sort_order: z.enum([
@@ -283,9 +251,9 @@ export const searchRecipesInputSchema = z.object({
   ]).optional(),
 
   // Pagination
-  /** Page number (1-based) */
+  /** Page number (1-based, default: 1) */
   page: z.number().int().min(1).optional(),
-  /** Number of items per page (max 100) */
+  /** Number of items per page (1-100, default: 20) */
   page_size: z.number().int().min(1).max(100).optional()
 });
 

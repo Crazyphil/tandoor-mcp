@@ -124,19 +124,27 @@ export interface TandoorIngredient {
 export interface TandoorFood {
   id: number;
   name: string;
-  plural_name?: string;
+  plural_name?: string | null;
+  url?: string;
   substitute?: TandoorFood[];
 }
 
 export interface TandoorUnit {
   id: number;
   name: string;
-  plural_name?: string;
+  plural_name?: string | null;
+  description?: string | null;
 }
 
 export interface TandoorKeyword {
   id: number;
   name: string;
+  label?: string; // Read-only, computed from name
+  description?: string;
+  parent?: number | null;
+  numchild?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 /** Step structure as returned by Tandoor API (with resolved nested entities) */

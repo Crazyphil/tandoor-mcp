@@ -16,8 +16,19 @@ describe('Recipe Tools', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockClient = {
+      listAllFoods: jest.fn(),
+      searchFood: jest.fn(),
+      createFood: jest.fn(),
+      listAllUnits: jest.fn(),
+      searchUnit: jest.fn(),
+      createUnit: jest.fn(),
+      listAllKeywords: jest.fn(),
+      searchKeyword: jest.fn(),
+      createKeyword: jest.fn(),
+      createRecipe: jest.fn(),
+      getRecipe: jest.fn(),
       searchRecipes: jest.fn(),
-      getRecipe: jest.fn()
+      uploadRecipeImage: jest.fn()
     } as unknown as jest.Mocked<TandoorApiClient>;
     handlers = createRecipeToolHandlers(mockClient);
   });
@@ -26,8 +37,8 @@ describe('Recipe Tools', () => {
     it('should search recipes by query', async () => {
       const mockResponse: PaginatedResponse<TandoorRecipeResponse> = {
         results: [
-          { id: 1, name: 'Pasta Carbonara' },
-          { id: 2, name: 'Spaghetti Bolognese' }
+          { id: 1, name: 'Pasta Carbonara', keywords: [{ id: 1, name: 'Italian', label: 'Italian', numchild: 0 }] },
+          { id: 2, name: 'Spaghetti Bolognese', keywords: [{ id: 2, name: 'pasta', label: 'pasta', numchild: 0 }] }
         ],
         count: 2,
         page: 1,
@@ -64,11 +75,171 @@ describe('Recipe Tools', () => {
 
       expect(mockClient.searchRecipes).toHaveBeenCalledWith({
         foods: [1, 2],
+        foods_or: undefined,
+        foods_and: undefined,
+        foods_or_not: undefined,
+        foods_and_not: undefined,
         keywords: [3],
+        keywords_or: undefined,
+        keywords_and: undefined,
+        keywords_or_not: undefined,
+        keywords_and_not: undefined,
+        books: undefined,
+        createdby: undefined,
+        rating: undefined,
         rating_gte: 4,
+        rating_lte: undefined,
+        timescooked: undefined,
+        timescooked_gte: undefined,
+        timescooked_lte: undefined,
+        createdon_gte: undefined,
+        createdon_lte: undefined,
+        lastcooked_gte: undefined,
+        lastcooked_lte: undefined,
+        sort_order: undefined,
+        new: undefined,
+        makenow: undefined,
+        include_children: undefined,
+        num_recent: undefined,
         page: 1,
         page_size: 20
       });
+    });
+
+    it('should search with sort_order parameter', async () => {
+      const mockResponse: PaginatedResponse<TandoorRecipeResponse> = {
+        results: [{ id: 1, name: 'Sorted Recipe', keywords: [] }],
+        count: 1,
+        page: 1,
+        page_size: 20,
+        has_next: false,
+        has_previous: false
+      };
+
+      mockClient.searchRecipes.mockResolvedValue(mockResponse);
+
+      await handlers.search({ sort_order: '-rating' }, undefined);
+
+      expect(mockClient.searchRecipes).toHaveBeenCalledWith(expect.objectContaining({ sort_order: '-rating' }));
+    });
+
+    it('should search with advanced food filters', async () => {
+      const mockResponse: PaginatedResponse<TandoorRecipeResponse> = {
+        results: [],
+        count: 0,
+        page: 1,
+        page_size: 20,
+        has_next: false,
+        has_previous: false
+      };
+
+      mockClient.searchRecipes.mockResolvedValue(mockResponse);
+
+      await handlers.search({
+        foods_or: [1, 2],
+        foods_and: [3, 4],
+        foods_or_not: [5],
+        foods_and_not: [6]
+      }, undefined);
+
+      expect(mockClient.searchRecipes).toHaveBeenCalledWith(expect.objectContaining({
+        foods_or: [1, 2],
+        foods_and: [3, 4],
+        foods_or_not: [5],
+        foods_and_not: [6]
+      }));
+    });
+
+    it('should search with advanced keyword filters', async () => {
+      const mockResponse: PaginatedResponse<TandoorRecipeResponse> = {
+        results: [],
+        count: 0,
+        page: 1,
+        page_size: 20,
+        has_next: false,
+        has_previous: false
+      };
+
+      mockClient.searchRecipes.mockResolvedValue(mockResponse);
+
+      await handlers.search({
+        keywords_or: [1, 2],
+        keywords_and: [3],
+        keywords_or_not: [4],
+        keywords_and_not: [5]
+      }, undefined);
+
+      expect(mockClient.searchRecipes).toHaveBeenCalledWith(expect.objectContaining({
+        keywords_or: [1, 2],
+        keywords_and: [3],
+        keywords_or_not: [4],
+        keywords_and_not: [5]
+      }));
+    });
+
+    it('should search with rating and timescooked exact filters', async () => {
+      const mockResponse: PaginatedResponse<TandoorRecipeResponse> = {
+        results: [{ id: 1, name: 'Test Recipe', keywords: [] }],
+        count: 1,
+        page: 1,
+        page_size: 20,
+        has_next: false,
+        has_previous: false
+      };
+
+      mockClient.searchRecipes.mockResolvedValue(mockResponse);
+
+      await handlers.search({
+        rating: 5,
+        timescooked: 3
+      }, undefined);
+
+      expect(mockClient.searchRecipes).toHaveBeenCalledWith(expect.objectContaining({
+        rating: 5,
+        timescooked: 3
+      }));
+    });
+
+    it('should search with boolean flags', async () => {
+      const mockResponse: PaginatedResponse<TandoorRecipeResponse> = {
+        results: [],
+        count: 0,
+        page: 1,
+        page_size: 20,
+        has_next: false,
+        has_previous: false
+      };
+
+      mockClient.searchRecipes.mockResolvedValue(mockResponse);
+
+      await handlers.search({
+        new: true,
+        makenow: true,
+        include_children: true
+      }, undefined);
+
+      expect(mockClient.searchRecipes).toHaveBeenCalledWith(expect.objectContaining({
+        new: true,
+        makenow: true,
+        include_children: true
+      }));
+    });
+
+    it('should search with num_recent parameter', async () => {
+      const mockResponse: PaginatedResponse<TandoorRecipeResponse> = {
+        results: [],
+        count: 0,
+        page: 1,
+        page_size: 20,
+        has_next: false,
+        has_previous: false
+      };
+
+      mockClient.searchRecipes.mockResolvedValue(mockResponse);
+
+      await handlers.search({ num_recent: 10 }, undefined);
+
+      expect(mockClient.searchRecipes).toHaveBeenCalledWith(expect.objectContaining({ num_recent: 10 }));
     });
 
     it('should return empty results for no matches', async () => {
@@ -86,6 +257,27 @@ describe('Recipe Tools', () => {
       expect(result.content[0].text).toContain('"count": 0');
     });
 
+    it('should handle lastcooked date filters', async () => {
+      mockClient.searchRecipes.mockResolvedValue({
+        results: [],
+        count: 0,
+        page: 1,
+        page_size: 20,
+        has_next: false,
+        has_previous: false
+      });
+
+      await handlers.search({
+        lastcooked_gte: '2024-01-01',
+        lastcooked_lte: '2024-12-31'
+      }, undefined);
+
+      expect(mockClient.searchRecipes).toHaveBeenCalledWith(expect.objectContaining({
+        lastcooked_gte: '2024-01-01',
+        lastcooked_lte: '2024-12-31'
+      }));
+    });
+
     it('should throw error when API call fails', async () => {
       mockClient.searchRecipes.mockRejectedValue(new Error('Server error'));
 
@@ -99,7 +291,15 @@ describe('Recipe Tools', () => {
         id: 1,
         name: 'Test Recipe',
         description: 'A test recipe',
-        servings: 4
+        servings: 4,
+        keywords: [{ id: 1, name: 'test', label: 'test', numchild: 0 }],
+        steps: [{
+          id: 1,
+          name: '',
+          instruction: 'Test instruction',
+          order: 0,
+          ingredients: []
+        }]
       };
 
       mockClient.getRecipe.mockResolvedValue(mockResponse);

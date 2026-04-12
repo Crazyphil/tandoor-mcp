@@ -45,11 +45,15 @@ export class TandoorApiClient {
   }
 
   /** Create a new food */
-  async createFood(name: string, pluralName?: string): Promise<TandoorFood> {
-    const response = await this.client.post<TandoorFood>(
-      '/api/food/',
-      { name, plural_name: pluralName }
-    );
+  async createFood(name: string, pluralName?: string | null, url?: string): Promise<TandoorFood> {
+    const payload: { name: string; plural_name?: string | null; url?: string } = { name };
+    if (pluralName !== undefined) {
+      payload.plural_name = pluralName;
+    }
+    if (url !== undefined) {
+      payload.url = url;
+    }
+    const response = await this.client.post<TandoorFood>('/api/food/', payload);
     return response.data;
   }
 
@@ -72,11 +76,15 @@ export class TandoorApiClient {
   }
 
   /** Create a new unit */
-  async createUnit(name: string): Promise<TandoorUnit> {
-    const response = await this.client.post<TandoorUnit>(
-      '/api/unit/',
-      { name }
-    );
+  async createUnit(name: string, pluralName?: string | null, description?: string): Promise<TandoorUnit> {
+    const payload: { name: string; plural_name?: string | null; description?: string } = { name };
+    if (pluralName !== undefined) {
+      payload.plural_name = pluralName;
+    }
+    if (description !== undefined) {
+      payload.description = description;
+    }
+    const response = await this.client.post<TandoorUnit>('/api/unit/', payload);
     return response.data;
   }
 
@@ -124,22 +132,66 @@ export class TandoorApiClient {
     return response.data;
   }
 
-  /** Search recipes with filters */
+  /** Search recipes with filters
+   * Full parameter set from Tandoor API. All parameters are optional.
+   * See Tandoor API docs for parameter descriptions.
+   */
   async searchRecipes(params: {
+    // Query and basic filters
     query?: string;
+    
+    // Food filters (ID arrays)
     foods?: number[];
+    foods_or?: number[];
+    foods_and?: number[];
+    foods_or_not?: number[];
+    foods_and_not?: number[];
+    
+    // Keyword filters (ID arrays)
     keywords?: number[];
+    keywords_or?: number[];
+    keywords_and?: number[];
+    keywords_or_not?: number[];
+    keywords_and_not?: number[];
+    
+    // Book filters
     books?: number[];
+    
+    // User filter
     createdby?: number;
+    
+    // Rating filters
+    rating?: number;
     rating_gte?: number;
     rating_lte?: number;
+    
+    // Times cooked filters
+    timescooked?: number;
     timescooked_gte?: number;
     timescooked_lte?: number;
+    
+    // Date filters
     createdon_gte?: string;
     createdon_lte?: string;
-    sort_order?: string;
+    lastcooked_gte?: string;
+    lastcooked_lte?: string;
+    
+    // Sorting
+    sort_order?: 'score' | '-score' | 'name' | '-name' | 'created_at' | '-created_at' | 
+                  'lastcooked' | '-lastcooked' | 'rating' | '-rating' | 'times_cooked' | 
+                  '-times_cooked' | 'lastviewed' | '-lastviewed' | string;
+    
+    // Boolean flags
+    new?: boolean;
+    makenow?: boolean;
+    include_children?: boolean;
+    
+    // Pagination
     page?: number;
     page_size?: number;
+    
+    // Recent recipes
+    num_recent?: number;
   }): Promise<PaginatedResponse<TandoorRecipeResponse>> {
     const response = await this.client.get<PaginatedResponse<TandoorRecipeResponse>>(
       '/api/recipe/',
@@ -148,17 +200,16 @@ export class TandoorApiClient {
     return response.data;
   }
 
-  /** Upload image to recipe */
+  /** Upload image to recipe
+   * Note: Axios automatically sets Content-Type with boundary for FormData
+   */
   async uploadRecipeImage(recipeId: number, imageUrl: string): Promise<void> {
     const formData = new FormData();
     const imageBlob = await this.downloadImage(imageUrl);
     formData.append('image', imageBlob);
 
-    await this.client.put(
-      `/api/recipe/${recipeId}/image/`,
-      formData,
-      { headers: { 'Content-Type': 'multipart/form-data' } }
-    );
+    // Do NOT manually set Content-Type - axios handles this automatically with proper boundary
+    await this.client.put(`/api/recipe/${recipeId}/image/`, formData);
   }
 
   /** Download image from URL */

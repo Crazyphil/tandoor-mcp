@@ -25,7 +25,7 @@ type ToolHandler<T = any> = (args: T, extra: unknown) => Promise<{ content: { ty
 interface UnitToolHandlers {
   listAll: ToolHandler<{ page?: number; page_size?: number }>;
   search: ToolHandler<{ query: string }>;
-  create: ToolHandler<{ name: string }>;
+  create: ToolHandler<{ name: string; plural_name?: string; description?: string }>;
 }
 
 /**
@@ -86,11 +86,11 @@ export function createUnitToolHandlers(client: TandoorApiClient): UnitToolHandle
    * If not, creates the new unit.
    */
   const create = async (
-    args: { name: string },
+    args: { name: string; plural_name?: string; description?: string },
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _extra: unknown
   ): Promise<{ content: { type: 'text'; text: string }[] }> => {
-    const { name } = args;
+    const { name, plural_name, description } = args;
 
     if (!name || name.trim() === '') {
       throw new McpError(
@@ -113,7 +113,7 @@ export function createUnitToolHandlers(client: TandoorApiClient): UnitToolHandle
       }
 
       // Entity doesn't exist - create it
-      const result = await client.createUnit(name);
+      const result = await client.createUnit(name, plural_name, description);
       return createJsonResponse(result);
     } catch (error) {
       // If it's already an entity_already_exists error, re-throw it directly

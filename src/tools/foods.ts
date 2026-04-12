@@ -25,7 +25,7 @@ type ToolHandler<T = any> = (args: T, extra: unknown) => Promise<{ content: { ty
 interface FoodToolHandlers {
   listAll: ToolHandler<{ page?: number; page_size?: number }>;
   search: ToolHandler<{ query: string }>;
-  create: ToolHandler<{ name: string; plural_name?: string }>;
+  create: ToolHandler<{ name: string; plural_name?: string; url?: string }>;
 }
 
 /**
@@ -87,11 +87,11 @@ export function createFoodToolHandlers(client: TandoorApiClient): FoodToolHandle
    * If not, creates the new food.
    */
   const create = async (
-    args: { name: string; plural_name?: string },
+    args: { name: string; plural_name?: string; url?: string },
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _extra: unknown
   ): Promise<{ content: { type: 'text'; text: string }[] }> => {
-    const { name, plural_name } = args;
+    const { name, plural_name, url } = args;
 
     if (!name || name.trim() === '') {
       throw new McpError(
@@ -114,7 +114,7 @@ export function createFoodToolHandlers(client: TandoorApiClient): FoodToolHandle
       }
 
       // Entity doesn't exist - create it
-      const result = await client.createFood(name, plural_name);
+      const result = await client.createFood(name, plural_name, url);
       return createJsonResponse(result);
     } catch (error) {
       // If it's already an entity_already_exists error, re-throw it directly

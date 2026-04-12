@@ -16,9 +16,19 @@ describe('Unit Tools', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockClient = {
+      listAllFoods: jest.fn(),
+      searchFood: jest.fn(),
+      createFood: jest.fn(),
       listAllUnits: jest.fn(),
       searchUnit: jest.fn(),
-      createUnit: jest.fn()
+      createUnit: jest.fn(),
+      listAllKeywords: jest.fn(),
+      searchKeyword: jest.fn(),
+      createKeyword: jest.fn(),
+      createRecipe: jest.fn(),
+      getRecipe: jest.fn(),
+      searchRecipes: jest.fn(),
+      uploadRecipeImage: jest.fn()
     } as unknown as jest.Mocked<TandoorApiClient>;
     handlers = createUnitToolHandlers(mockClient);
   });
@@ -27,11 +37,11 @@ describe('Unit Tools', () => {
     it('should list all units with pagination', async () => {
       const mockResponse: PaginatedResponse<TandoorUnit> = {
         results: [
-          { id: 1, name: 'cup' },
-          { id: 2, name: 'tsp' },
-          { id: 3, name: 'tbsp' },
-          { id: 4, name: 'g' },
-          { id: 5, name: 'kg' }
+          { id: 1, name: 'cup', plural_name: 'cups' },
+          { id: 2, name: 'tsp', plural_name: 'tsp' },
+          { id: 3, name: 'tbsp', plural_name: 'tbsp' },
+          { id: 4, name: 'g', plural_name: 'g' },
+          { id: 5, name: 'kg', plural_name: 'kg' }
         ],
         count: 5,
         page: 1,
@@ -75,10 +85,10 @@ describe('Unit Tools', () => {
     it('should search units by query', async () => {
       // Real API: returns units where name contains query (fuzzy search)
       const mockResponse: TandoorUnit[] = [
-        { id: 1, name: 'cup' },
-        { id: 2, name: 'cupful' },
-        { id: 3, name: 'cup/2' },
-        { id: 4, name: '1/4 cup' }
+        { id: 1, name: 'cup', plural_name: 'cups' },
+        { id: 2, name: 'cupful', plural_name: 'cupfuls' },
+        { id: 3, name: 'cup/2', plural_name: 'cup/2' },
+        { id: 4, name: '1/4 cup', plural_name: '1/4 cups' }
       ];
 
       mockClient.searchUnit.mockResolvedValue(mockResponse);
@@ -117,8 +127,8 @@ describe('Unit Tools', () => {
     it('should create a new unit', async () => {
       // Real API: search returns units containing query, but no exact match
       mockClient.searchUnit.mockResolvedValue([
-        { id: 100, name: 'pinch of something' },
-        { id: 101, name: 'test_pinch_unit' }
+        { id: 100, name: 'pinch of something', plural_name: 'pinch of somethings' },
+        { id: 101, name: 'test_pinch_unit', plural_name: 'test_pinch_units' }
       ]);
 
       const mockResponse: TandoorUnit = { id: 10, name: 'pinch' };
@@ -127,9 +137,27 @@ describe('Unit Tools', () => {
       const result = await handlers.create({ name: 'pinch' }, undefined);
 
       expect(mockClient.searchUnit).toHaveBeenCalledWith('pinch');
-      expect(mockClient.createUnit).toHaveBeenCalledWith('pinch');
+      expect(mockClient.createUnit).toHaveBeenCalledWith('pinch', undefined, undefined);
       expect(result.content[0].text).toContain('"id": 10');
       expect(result.content[0].text).toContain('"name": "pinch"');
+    });
+
+    it('should create unit with plural_name', async () => {
+      // Real API: search returns units containing query, but no exact match
+      mockClient.searchUnit.mockResolvedValue([
+        { id: 100, name: 'handful of something', plural_name: 'handfuls' }
+      ]);
+
+      const mockResponse: TandoorUnit = { id: 11, name: 'handful', plural_name: 'handfuls' };
+      mockClient.createUnit.mockResolvedValue(mockResponse);
+
+      const result = await handlers.create({ name: 'handful', plural_name: 'handfuls' }, undefined);
+
+      expect(mockClient.searchUnit).toHaveBeenCalledWith('handful');
+      expect(mockClient.createUnit).toHaveBeenCalledWith('handful', 'handfuls', undefined);
+      expect(result.content[0].text).toContain('"id": 11');
+      expect(result.content[0].text).toContain('"name": "handful"');
+      expect(result.content[0].text).toContain('"plural_name": "handfuls"');
     });
 
     it('should throw error for empty name', async () => {
@@ -141,9 +169,9 @@ describe('Unit Tools', () => {
     it('should return entity_already_exists error when unit already exists', async () => {
       // Real API: search returns units containing 'cup', exact match exists
       mockClient.searchUnit.mockResolvedValue([
-        { id: 5, name: 'cup' },
-        { id: 6, name: 'cupful' },
-        { id: 7, name: '1/4 cup' }
+        { id: 5, name: 'cup', plural_name: 'cups' },
+        { id: 6, name: 'cupful', plural_name: 'cupfuls' },
+        { id: 7, name: '1/4 cup', plural_name: '1/4 cups' }
       ]);
 
       await expect(handlers.create({ name: 'cup' }, undefined)).rejects.toThrow('entity_already_exists');
@@ -153,7 +181,7 @@ describe('Unit Tools', () => {
     it('should throw generic error when API call fails', async () => {
       // Unit doesn't exist: search returns results containing query but no exact match
       mockClient.searchUnit.mockResolvedValue([
-        { id: 200, name: 'some_dash_variety' }
+        { id: 200, name: 'some_dash_variety', plural_name: null }
       ]);
       mockClient.createUnit.mockRejectedValue(new Error('Internal server error'));
 
@@ -163,9 +191,9 @@ describe('Unit Tools', () => {
     it('should be case-insensitive when checking for duplicates', async () => {
       // Real API: search returns case-insensitive matches containing query
       mockClient.searchUnit.mockResolvedValue([
-        { id: 88, name: 'Gram' },
-        { id: 89, name: 'grams' },
-        { id: 90, name: 'kilogram' }
+        { id: 88, name: 'Gram', plural_name: 'g' },
+        { id: 89, name: 'grams', plural_name: 'grams' },
+        { id: 90, name: 'kilogram', plural_name: 'kilograms' }
       ]);
 
       await expect(handlers.create({ name: 'gram' }, undefined)).rejects.toThrow('entity_already_exists');

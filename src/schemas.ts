@@ -140,7 +140,10 @@ export const createFoodInputSchema = z.object({
   name: z.string().min(1),
 
   /** Plural form of the food name (optional) */
-  plural_name: z.string().optional()
+  plural_name: z.string().optional(),
+
+  /** URL to external food information (optional) */
+  url: z.string().optional()
 });
 
 /**
@@ -161,7 +164,13 @@ export const searchUnitInputSchema = z.object({
  */
 export const createUnitInputSchema = z.object({
   /** Unit name (e.g., "cup", "grams") */
-  name: z.string().min(1)
+  name: z.string().min(1),
+
+  /** Plural form of the unit (optional) */
+  plural_name: z.string().optional(),
+
+  /** Description of the unit (optional) */
+  description: z.string().optional()
 });
 
 /**
@@ -187,16 +196,29 @@ export const createKeywordInputSchema = z.object({
 
 /**
  * Input schema for search_recipes tool
+ * 
+ * All filter parameters supported by the Tandoor RecipeFilter API.
+ * See Tandoor API documentation for parameter descriptions.
  */
 export const searchRecipesInputSchema = z.object({
   /** Free-text search query */
   query: z.string().optional(),
 
-  /** Filter by food IDs (must be IDs, not names) */
+  // Food filters (ID arrays) - at least one food must match
+  /** Filter by food IDs (OR - match if any food is in recipe) */
   foods: z.array(z.number()).optional(),
+  foods_or: z.array(z.number()).optional(),
+  foods_and: z.array(z.number()).optional(),
+  foods_or_not: z.array(z.number()).optional(),
+  foods_and_not: z.array(z.number()).optional(),
 
-  /** Filter by keyword IDs (must be IDs, not names) */
+  // Keyword filters (ID arrays) - at least one keyword must match
+  /** Filter by keyword IDs (OR - match if any keyword is in recipe) */
   keywords: z.array(z.number()).optional(),
+  keywords_or: z.array(z.number()).optional(),
+  keywords_and: z.array(z.number()).optional(),
+  keywords_or_not: z.array(z.number()).optional(),
+  keywords_and_not: z.array(z.number()).optional(),
 
   /** Filter by recipe book IDs */
   books: z.array(z.number()).optional(),
@@ -204,39 +226,65 @@ export const searchRecipesInputSchema = z.object({
   /** Filter by creator user ID */
   createdby: z.number().optional(),
 
+  // Rating filters
+  /** Exact rating (0-5) */
+  rating: z.number().min(0).max(5).optional(),
   /** Minimum rating (0-5) */
   rating_gte: z.number().min(0).max(5).optional(),
-
   /** Maximum rating (0-5) */
   rating_lte: z.number().min(0).max(5).optional(),
 
+  // Times cooked filters
+  /** Exact times cooked */
+  timescooked: z.number().int().min(0).optional(),
   /** Minimum times cooked */
   timescooked_gte: z.number().int().min(0).optional(),
-
   /** Maximum times cooked */
   timescooked_lte: z.number().int().min(0).optional(),
 
+  // Date filters
   /** Minimum creation date (ISO 8601) */
   createdon_gte: z.string().optional(),
-
   /** Maximum creation date (ISO 8601) */
   createdon_lte: z.string().optional(),
+  /** Minimum last cooked date (ISO 8601) */
+  lastcooked_gte: z.string().optional(),
+  /** Maximum last cooked date (ISO 8601) */
+  lastcooked_lte: z.string().optional(),
 
-  /** Sort order for results */
+  // Boolean flags
+  /** Only show new/unseen recipes */
+  new: z.boolean().optional(),
+  /** Only show recipes that can be made now (ingredients on hand) */
+  makenow: z.boolean().optional(),
+  /** Include child objects in search */
+  include_children: z.boolean().optional(),
+
+  // Recent recipes
+  /** Limit to most recent N recipes */
+  num_recent: z.number().int().min(1).optional(),
+
+  /** Sort order for results. Use prefix - for descending order */
   sort_order: z.enum([
     "score",
     "-score",
     "name",
     "-name",
-    "created",
-    "-created",
+    "created_at",
+    "-created_at",
+    "lastcooked",
+    "-lastcooked",
     "rating",
-    "-rating"
+    "-rating",
+    "times_cooked",
+    "-times_cooked",
+    "lastviewed",
+    "-lastviewed"
   ]).optional(),
 
+  // Pagination
   /** Page number (1-based) */
   page: z.number().int().min(1).optional(),
-
   /** Number of items per page (max 100) */
   page_size: z.number().int().min(1).max(100).optional()
 });

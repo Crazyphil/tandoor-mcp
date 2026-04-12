@@ -9,7 +9,7 @@
 
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import { TandoorApiClient } from '../api/client';
-import { handleApiError, createEntityExistsError, isAxiosError } from '../utils/errors';
+import { handleApiError, createEntityExistsError, isAxiosError, isEntityExistsError } from '../utils/errors';
 import { createJsonResponse } from '../utils/response';
 import { HTTP_CONFLICT } from '../constants';
 
@@ -118,16 +118,8 @@ export function createFoodToolHandlers(client: TandoorApiClient): FoodToolHandle
       return createJsonResponse(result);
     } catch (error) {
       // If it's already an entity_already_exists error, re-throw it directly
-      if (error instanceof McpError) {
-        const errorMessage = error.message;
-        try {
-          const parsed = JSON.parse(errorMessage);
-          if (parsed.error_code === 'entity_already_exists') {
-            throw error;
-          }
-        } catch {
-          // Not JSON or no error_code, continue with normal handling
-        }
+      if (isEntityExistsError(error)) {
+        throw error;
       }
       // Handle 409 Conflict if Tandoor returns it in the future
       if (isAxiosError(error) && error.response?.status === HTTP_CONFLICT) {

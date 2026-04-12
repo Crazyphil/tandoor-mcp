@@ -63,6 +63,25 @@ function extractErrorDetails(error: unknown): unknown {
 }
 
 /**
+ * Checks if an error is already an 'entity_already_exists' MCP error
+ * Used to avoid re-wrapping errors that already have the correct format.
+ *
+ * @param error - The error to check
+ * @returns True if the error is already an entity_already_exists error
+ */
+export function isEntityExistsError(error: unknown): boolean {
+  if (!(error instanceof McpError)) {
+    return false;
+  }
+  try {
+    const parsed = JSON.parse(error.message);
+    return parsed.error_code === 'entity_already_exists';
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Handle API errors and convert them to appropriate MCP errors
  *
  * @param error - The error from the API call

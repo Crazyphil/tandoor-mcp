@@ -139,7 +139,7 @@ export class RecipeImporter {
         imageStatus = await this.uploadImage(recipeId, recipe.image);
       }
 
-      // Step 7: Return success
+      // Step 8: Return success
       return {
         recipe_id: recipeId,
         recipe_url: recipeUrl,

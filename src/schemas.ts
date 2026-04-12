@@ -21,6 +21,20 @@ export const authorSchema = z.object({
 });
 
 /**
+ * Schema.org Recipe instruction object (HowToStep)
+ * Supports per-step ingredients as a non-standard extension.
+ */
+export const recipeInstructionSchema = z.object({
+  '@type': z.string().optional(),
+  name: z.string().optional(),
+  text: z.string(),
+  url: z.string().optional(),
+  image: z.any().optional(),
+  /** Non-standard extension: per-step ingredient definitions */
+  recipeIngredient: z.union([z.array(z.string()), z.string()]).optional()
+});
+
+/**
  * Schema.org Recipe nutrition object
  * Allows additional fields beyond the standard ones
  */
@@ -40,8 +54,8 @@ export const recipeSchema = z.object({
   /** List of ingredients as strings (e.g., "2 cups flour") */
   recipeIngredient: z.array(z.string()),
 
-  /** Cooking instructions as strings or structured objects */
-  recipeInstructions: z.array(z.string()),
+  /** Cooking instructions as strings or structured HowToStep objects */
+  recipeInstructions: z.array(z.union([z.string(), recipeInstructionSchema])),
 
   /** Recipe yield (e.g., "4 servings") */
   recipeYield: z.union([z.string(), z.number()]).optional(),

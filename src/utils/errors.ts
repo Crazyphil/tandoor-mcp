@@ -70,13 +70,21 @@ function extractErrorDetails(error: unknown): unknown {
  * @returns True if the error is already an entity_already_exists error
  */
 export function isEntityExistsError(error: unknown): boolean {
-  if (!(error instanceof McpError)) {
+  // Use duck-typing instead of instanceof to handle potential module import issues
+  if (!error || typeof error !== 'object') {
     return false;
   }
+
+  // Check if it looks like an McpError (has code and message properties)
+  const mcpError = error as { code?: number; message?: string };
+  if (typeof mcpError.message !== 'string') {
+    return false;
+  }
+
   try {
-    // McpError messages are formatted as "MCP error <code>: <json_message>"
+    // McpError messages may be formatted as "MCP error <code>: <json_message>"
     // Extract just the JSON portion from the message
-    const message = error.message;
+    const message = mcpError.message;
     const jsonStart = message.indexOf('{');
     const jsonEnd = message.lastIndexOf('}');
     if (jsonStart === -1 || jsonEnd === -1 || jsonEnd < jsonStart) {

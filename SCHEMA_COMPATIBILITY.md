@@ -16,7 +16,7 @@ This document maps schema.org/Recipe fields to Tandoor's data model, documenting
 
 | Schema.org Field | Tandoor Field | Status | Implementation Details |
 |------------------|---------------|--------|------------------------|
-| `name` | `Recipe.name` | ✅ | Direct string mapping. Required field. |
+| `name` | `Recipe.name` | ✅ | Direct string mapping. Used for duplicate detection. Required field. |
 | `description` | `Recipe.description` | ✅ | Direct string mapping. Optional. |
 | `recipeIngredient` | `Ingredient` (via `steps[].ingredients`) | ✅ | Parsed into structured `{amount, unit, food, note}`. See [Ingredient Parsing](#ingredient-parsing). |
 | `recipeInstructions` | `Step` objects | 📝 | String array: split into ordered steps. `HowToStep` objects: `text` → `instruction`, `name` → `name`. `HowToSection` (nested): ⚠️ NOT IMPLEMENTED - flattened. **Extension**: Steps can have `recipeIngredient` array to define per-step ingredients (bypasses Recipe-level `recipeIngredient`). |
@@ -37,7 +37,7 @@ This document maps schema.org/Recipe fields to Tandoor's data model, documenting
 | Schema.org Field | Tandoor Field | Status | Implementation Details |
 |------------------|---------------|--------|------------------------|
 | `image` | `Recipe.image` | ✅ | URL or base64 uploaded via `PUT /api/recipe/{id}/image/`. |
-| `url` / `sourceUrl` | `Recipe.source_url` | ✅ | Direct string mapping. Used for duplicate detection. |
+| `url` / `sourceUrl` | `Recipe.source_url` | ✅ | Direct string mapping. |
 | `author` | `Step.instruction` | 🔀 | Author name appended to last step in Markdown italics: `*Author Name*` |
 
 ## Time & Duration

@@ -433,7 +433,7 @@ When this MCP server initializes a connection with an MCP client, it declares th
 ### 4.1. Core Policy Requirements
 - strict schema approach: require a structured JSON recipe payload; no operator-level free-text fallback ingest is allowed.
 - entity pre-existence: all `food`, `unit`, and `keyword` entities referenced in the recipe must already exist in Tandoor before import. Agent must use search/create tools to ensure this. Import fails with `missing_entities` error if any are absent.
-- deduplicate: check if recipe already exists by `name` and normalized ingredient set, and return `error_code: duplicate_recipe` if already exists (optionally offer update path). Note: `source_url` is not used for duplicate detection as the Tandoor API does not support searching by source URL.
+- deduplicate: check if recipe already exists by `name` (exact match, case-insensitive), and return `error_code: duplicate_recipe` if already exists (optionally offer update path). Note: Ingredient comparison is intentionally excluded as it is an unreliable heuristic. `source_url` is not used for duplicate detection as the Tandoor API does not support searching by source URL.
 - units standardization: map units via `/api/unit/`; if unknown, keep raw text in `Ingredient.note` and return a warning annotation, not a failure.
 - fields unsupported by Tandoor can be stored as `metadata` or `properties` and may be written via secondary updates.
 - validation feedback: when a recipe field cannot be mapped or creates incompatibility, response should include `error_code`, `details`, and a “fix suggestion” entry (field, current_value, expected_format).

@@ -169,12 +169,14 @@ export class RecipeImporter {
   }
 
   /**
-   * Check if a recipe with the same name or source_url already exists
-   * Per MCP spec: deduplicate by name, source_url, and normalized ingredient set
+   * Check if a recipe with the same name already exists
+   * Duplicate detection is based on exact name match only (case-insensitive).
+   * Ingredient comparison is intentionally excluded as it is an unreliable heuristic.
    */
   private async checkForDuplicate(
     recipe: SchemaOrgRecipe,
-    payload: TandoorRecipePayload
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _payload: TandoorRecipePayload
   ): Promise<{
     isDuplicate: boolean;
     existingRecipeId?: number;
@@ -182,10 +184,9 @@ export class RecipeImporter {
     matchReason?: string;
   }> {
     try {
-      // Must have a name to search for duplicates
+      // Check for duplicate by name only
+      // Only proceed if we have a name to search
       if (!recipe.name || recipe.name.trim() === '') {
-        // Can't check for duplicates without a name - this should have been caught by validation
-        // But if we get here, we won't block the import
         return { isDuplicate: false };
       }
 
@@ -201,40 +202,16 @@ export class RecipeImporter {
         return { isDuplicate: false };
       }
 
-      // Normalize the new recipe's ingredients for comparison (sorted food IDs)
-      const newIngredients = payload.ingredients
-        .map(i => i.food)
-        .sort((a, b) => a - b)
-        .join(',');
-
-      // Check each candidate for duplicate criteria
+      // Check for exact name match (case-insensitive)
+      const normalizedNewName = recipe.name.toLowerCase().trim();
       for (const existingRecipe of searchResult.results) {
-        // Check for duplicate by name + same ingredient set
-        if (existingRecipe.name.toLowerCase() === recipe.name.toLowerCase()) {
-          // Need to fetch full recipe to compare ingredients
-          try {
-            const fullRecipe = await this.client.getRecipe(existingRecipe.id);
-            
-            // Build sorted ingredient list from existing recipe
-            // Note: API returns nested food objects, but for comparison we only need the ID
-            const existingIngredients = (fullRecipe.steps || [])
-              .flatMap(s => s.ingredients || [])
-              .map(i => typeof i.food === 'object' ? i.food.id : i.food)
-              .sort((a, b) => a - b)
-              .join(',');
-
-            if (existingIngredients === newIngredients) {
-              return {
-                isDuplicate: true,
-                existingRecipeId: existingRecipe.id,
-                existingRecipeUrl: `${this.client['client'].defaults.baseURL}/recipe/${existingRecipe.id}/`,
-                matchReason: 'name_and_ingredients'
-              };
-            }
-          } catch {
-            // Failed to fetch full recipe, skip ingredient comparison
-            continue;
-          }
+        if (existingRecipe.name.toLowerCase() === normalizedNewName) {
+          return {
+            isDuplicate: true,
+            existingRecipeId: existingRecipe.id,
+            existingRecipeUrl: `${this.client['client'].defaults.baseURL}/recipe/${existingRecipe.id}/`,
+            matchReason: 'name'
+          };
         }
       }
 

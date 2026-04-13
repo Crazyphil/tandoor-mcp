@@ -588,7 +588,7 @@ Each test includes:
 
 ---
 
-### 5.7 Import Duplicate Detection (Same Name + Similar Ingredients)
+### 5.7 Import Duplicate Detection (Same Name)
 **Purpose:** Verify MCP server's duplicate detection by name works before Tandoor
 **Precondition:** Test 5.1 must have succeeded (recipe exists with same name)
 
@@ -613,7 +613,7 @@ Each test includes:
 **Verify:**
 - [ ] Response contains `error_code`: `"duplicate_recipe"`
 - [ ] `error_details.existing_recipe_id` matches recipe from Test 5.1
-- [ ] `error_details.match_reason` is `"name_and_ingredients"`
+- [ ] `error_details.match_reason` is `"name"`
 - [ ] No new recipe created (verify via search if unsure)
 
 ---

@@ -19,9 +19,9 @@ This document maps schema.org/Recipe fields to Tandoor's data model, documenting
 | `name` | `Recipe.name` | ✅ | Direct string mapping. Used for duplicate detection. Required field. |
 | `description` | `Recipe.description` | ✅ | Direct string mapping. Optional. |
 | `recipeIngredient` | `Ingredient` (via `steps[].ingredients`) | ✅ | Parsed into structured `{amount, unit, food, note}`. See [Ingredient Parsing](#ingredient-parsing). |
-| `recipeInstructions` | `Step` objects | 📝 | String array: split into ordered steps. `HowToStep` objects: `text` → `instruction`, `name` → `name`. `HowToSection` (nested): ⚠️ NOT IMPLEMENTED - flattened. **Extension**: Steps can have `recipeIngredient` array to define per-step ingredients (bypasses Recipe-level `recipeIngredient`). |
+| `recipeInstructions` | `Step` objects | 📝 | String array: split into ordered steps. `HowToStep` objects: `text` → `instruction`, `name` → `name`. Per-step `url` and `image` are **ignored** (Tandoor doesn't support per-step media). `HowToSection` (nested): ⚠️ NOT IMPLEMENTED - flattened. **Extension**: Steps can have `recipeIngredient` array to define per-step ingredients (bypasses Recipe-level `recipeIngredient`). |
 | `recipeYield` | `Recipe.servings` + `Recipe.servings_text` | 🔀 | If number: stored as `servings`. If string: number extracted as `servings`, remainder as `servings_text` (e.g., "4 servings" → servings: 4, servings_text: "servings"; "2 loaves" → servings: 2, servings_text: "loaves"). |
-| `servings` | `Recipe.servings` | ✅ | Direct integer mapping. Preferred over `recipeYield`. |
+| `servings` | `Recipe.servings` | ✅ | **Non-standard extension** - Direct integer mapping when recipeYield is numeric. Preferred over parsing `recipeYield`. |
 
 ## Categorization & Metadata
 

@@ -155,8 +155,8 @@ describe('MCP Server Integration', () => {
       const createTools = response.tools.filter(t => t.name.startsWith('create_'));
 
       for (const tool of createTools) {
-        expect(tool.description).toContain('already exists');
-        expect(tool.description).toContain('check');
+        expect(tool.description.toLowerCase()).toContain('already exists');
+        expect(tool.description.toLowerCase()).toContain('check');
       }
     });
   });

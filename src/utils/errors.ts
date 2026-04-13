@@ -74,7 +74,16 @@ export function isEntityExistsError(error: unknown): boolean {
     return false;
   }
   try {
-    const parsed = JSON.parse(error.message);
+    // McpError messages are formatted as "MCP error <code>: <json_message>"
+    // Extract just the JSON portion from the message
+    const message = error.message;
+    const jsonStart = message.indexOf('{');
+    const jsonEnd = message.lastIndexOf('}');
+    if (jsonStart === -1 || jsonEnd === -1 || jsonEnd < jsonStart) {
+      return false;
+    }
+    const jsonStr = message.substring(jsonStart, jsonEnd + 1);
+    const parsed = JSON.parse(jsonStr);
     return parsed.error_code === 'entity_already_exists';
   } catch {
     return false;

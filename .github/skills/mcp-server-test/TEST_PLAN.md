@@ -588,15 +588,15 @@ Each test includes:
 
 ---
 
-### 5.7 Import Duplicate Detection (Same Source URL)
-**Purpose:** Verify MCP server's duplicate detection works before Tandoor
-**Precondition:** Test 5.1 must have succeeded (recipe exists with sourceUrl)
+### 5.7 Import Duplicate Detection (Same Name + Similar Ingredients)
+**Purpose:** Verify MCP server's duplicate detection by name works before Tandoor
+**Precondition:** Test 5.1 must have succeeded (recipe exists with same name)
 
 **Input:**
 ```json
 {
   "recipe": {
-    "name": "Copilot Test Recipe - Comprehensive 2",
+    "name": "Copilot Test Recipe - Comprehensive",
     "recipeIngredient": [
       "2 cups tomato"
     ],
@@ -604,7 +604,7 @@ Each test includes:
       "Different instructions"
     ],
     "servings": 2,
-    "sourceUrl": "https://test-copilot.example.com/comprehensive"
+    "sourceUrl": "https://different-url.example.com/test"
   }
 }
 ```
@@ -613,7 +613,7 @@ Each test includes:
 **Verify:**
 - [ ] Response contains `error_code`: `"duplicate_recipe"`
 - [ ] `error_details.existing_recipe_id` matches recipe from Test 5.1
-- [ ] `error_details.match_reason` is `"source_url"`
+- [ ] `error_details.match_reason` is `"name_and_ingredients"`
 - [ ] No new recipe created (verify via search if unsure)
 
 ---
@@ -715,7 +715,7 @@ After completing all tests, verify:
 - [ ] Invalid payload returns `invalid_payload` error
 - [ ] Image URL failures are soft (recipe created, image_status: failed)
 - [ ] Time fields and nutrition stored/transformed correctly
-- [ ] Duplicate detection by source URL works (returns `duplicate_recipe`)
+- [ ] Duplicate detection by name + ingredients works (returns `duplicate_recipe`)
 
 ### Round-Trip Verification (Section 6)
 - [ ] Retrieved recipes match imported data (ingredients, instructions, metadata)

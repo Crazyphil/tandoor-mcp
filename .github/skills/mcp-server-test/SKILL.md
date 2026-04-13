@@ -24,7 +24,7 @@ Execute comprehensive end-to-end tests against an MCP server's tools, following 
 ### Phase 1: Pre-Flight Checks
 
 Before running tests:
-1. Verify the MCP server is connected and available
+1. Verify the MCP server is connected and available. The tools provided by the server **MUST** be available in the skill's context (look for tools like "create_food" provided by "tandoor"), the server **MUST NOT** be built from source or started in any other manual way.
 2. Check for existing test artifacts that may conflict (search for test entities)
 3. If artifacts exist, **STOP** and notify user to clean up first
 4. Document the starting state
@@ -65,6 +65,7 @@ Search for all test entities created during the test run:
 - Units matching pattern: `copilot-test-*`
 - Keywords matching pattern: `copilot-test-*`
 - Recipes matching pattern: `Copilot Test Recipe*`
+When using the search tools, be aware that the search is fuzzy and may return non-test entities. Implement additional verification (e.g., check for specific test patterns in names or descriptions) to ensure only test artifacts are targeted for deletion.
 
 #### 7.2 Delete Test Foods
 For each test food found:

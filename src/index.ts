@@ -21,7 +21,7 @@ import { createFoodToolHandlers } from './tools/foods';
 import { createUnitToolHandlers } from './tools/units';
 import { createKeywordToolHandlers } from './tools/keywords';
 import { createRecipeToolHandlers } from './tools/recipes';
-import { tools } from './tools/tool-definitions';
+import { tools, toolsByName } from './tools/tool-definitions';
 
 // Environment validation
 const baseUrl = process.env.TANDOOR_BASE_URL;
@@ -63,11 +63,11 @@ export const server = new McpServer(
 // ============================================================================
 // Import recipe from JSON
 server.registerTool(
-  'import_recipe_from_json',
+  toolsByName.import_recipe_from_json.name,
   {
-    title: 'Import recipe from JSON',
-    description: 'Import a recipe from schema.org JSON format into Tandoor. The recipe must be a complete structured JSON object with mandatory fields: name, recipeIngredient, recipeInstructions. All referenced foods, units, and keywords must already exist in Tandoor.',
-    inputSchema: tools[0].inputSchema
+    title: toolsByName.import_recipe_from_json.title,
+    description: toolsByName.import_recipe_from_json.description,
+    inputSchema: toolsByName.import_recipe_from_json.inputSchema
   },
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async (args: unknown, _extra: unknown): Promise<{ content: { type: 'text'; text: string }[] }> => {
@@ -81,107 +81,107 @@ server.registerTool(
 
 // Food tools
 server.registerTool(
-  'list_all_foods',
+  toolsByName.list_all_foods.name,
   {
-    title: 'List all foods',
-    description: 'Get a paginated list of all foods in Tandoor. Use this to build a local reference map of available foods for recipe import.',
-    inputSchema: tools[1].inputSchema
+    title: toolsByName.list_all_foods.title,
+    description: toolsByName.list_all_foods.description,
+    inputSchema: toolsByName.list_all_foods.inputSchema
   },
   (args: unknown, extra: unknown) => foodHandlers.listAll(args as { page?: number; page_size?: number }, extra)
 );
 server.registerTool(
-  'search_food',
+  toolsByName.search_food.name,
   {
-    title: 'Search foods',
-    description: 'Search for foods in Tandoor by name. Use this to find specific foods by query string (e.g., "onion", "tomatoes"). Returns matching foods with their IDs, names, plural forms, and substitutes.',
-    inputSchema: tools[2].inputSchema
+    title: toolsByName.search_food.title,
+    description: toolsByName.search_food.description,
+    inputSchema: toolsByName.search_food.inputSchema
   },
   (args: unknown, extra: unknown) => foodHandlers.search(args as { query: string }, extra)
 );
 server.registerTool(
-  'create_food',
+  toolsByName.create_food.name,
   {
-    title: 'Create food',
-    description: 'Create a new food in Tandoor. Note: You must check if the food already exists using search_food() or list_all_foods() before creating. If the food already exists, an error will be returned.',
-    inputSchema: tools[3].inputSchema
+    title: toolsByName.create_food.title,
+    description: toolsByName.create_food.description,
+    inputSchema: toolsByName.create_food.inputSchema
   },
   (args: unknown, extra: unknown) => foodHandlers.create(args as { name: string; plural_name?: string }, extra)
 );
 
 // Unit tools
 server.registerTool(
-  'list_all_units',
+  toolsByName.list_all_units.name,
   {
-    title: 'List all units',
-    description: 'Get a paginated list of all measurement units in Tandoor. Use this to build a local reference map of available units for recipe import.',
-    inputSchema: tools[4].inputSchema
+    title: toolsByName.list_all_units.title,
+    description: toolsByName.list_all_units.description,
+    inputSchema: toolsByName.list_all_units.inputSchema
   },
   (args: unknown, extra: unknown) => unitHandlers.listAll(args as { page?: number; page_size?: number }, extra)
 );
 server.registerTool(
-  'search_unit',
+  toolsByName.search_unit.name,
   {
-    title: 'Search units',
-    description: 'Search for measurement units in Tandoor by name. Use this to find specific units by query string (e.g., "cup", "grams"). Returns matching units with their IDs and names.',
-    inputSchema: tools[5].inputSchema
+    title: toolsByName.search_unit.title,
+    description: toolsByName.search_unit.description,
+    inputSchema: toolsByName.search_unit.inputSchema
   },
   (args: unknown, extra: unknown) => unitHandlers.search(args as { query: string }, extra)
 );
 server.registerTool(
-  'create_unit',
+  toolsByName.create_unit.name,
   {
-    title: 'Create unit',
-    description: 'Create a new measurement unit in Tandoor. Note: You must check if the unit already exists using search_unit() or list_all_units() before creating. If the unit already exists, an error will be returned.',
-    inputSchema: tools[6].inputSchema
+    title: toolsByName.create_unit.title,
+    description: toolsByName.create_unit.description,
+    inputSchema: toolsByName.create_unit.inputSchema
   },
   (args: unknown, extra: unknown) => unitHandlers.create(args as { name: string }, extra)
 );
 
 // Keyword tools
 server.registerTool(
-  'list_all_keywords',
+  toolsByName.list_all_keywords.name,
   {
-    title: 'List all keywords',
-    description: 'Get a paginated list of all keywords in Tandoor. Use this to build a local reference map of available keywords for recipe import.',
-    inputSchema: tools[7].inputSchema
+    title: toolsByName.list_all_keywords.title,
+    description: toolsByName.list_all_keywords.description,
+    inputSchema: toolsByName.list_all_keywords.inputSchema
   },
   (args: unknown, extra: unknown) => keywordHandlers.listAll(args as { page?: number; page_size?: number }, extra)
 );
 server.registerTool(
-  'search_keyword',
+  toolsByName.search_keyword.name,
   {
-    title: 'Search keywords',
-    description: 'Search for keywords in Tandoor by name. Use this to find specific keywords by query string (e.g., "Italian", "vegetarian"). Returns matching keywords with their IDs and names.',
-    inputSchema: tools[8].inputSchema
+    title: toolsByName.search_keyword.title,
+    description: toolsByName.search_keyword.description,
+    inputSchema: toolsByName.search_keyword.inputSchema
   },
   (args: unknown, extra: unknown) => keywordHandlers.search(args as { query: string }, extra)
 );
 server.registerTool(
-  'create_keyword',
+  toolsByName.create_keyword.name,
   {
-    title: 'Create keyword',
-    description: 'Create a new keyword in Tandoor. Note: You must check if the keyword already exists using search_keyword() or list_all_keywords() before creating. If the keyword already exists, an error will be returned.',
-    inputSchema: tools[9].inputSchema
+    title: toolsByName.create_keyword.title,
+    description: toolsByName.create_keyword.description,
+    inputSchema: toolsByName.create_keyword.inputSchema
   },
   (args: unknown, extra: unknown) => keywordHandlers.create(args as { name: string }, extra)
 );
 
 // Recipe tools
 server.registerTool(
-  'search_recipes',
+  toolsByName.search_recipes.name,
   {
-    title: 'Search recipes',
-    description: 'Search for recipes in Tandoor with optional filters. This tool only accepts IDs for food/keyword filtering (not names). Agents must resolve names to IDs using search_food() and search_keyword() before calling this tool. Returns paginated results.',
-    inputSchema: tools[10].inputSchema
+    title: toolsByName.search_recipes.title,
+    description: toolsByName.search_recipes.description,
+    inputSchema: toolsByName.search_recipes.inputSchema
   },
   (args: unknown, extra: unknown) => recipeHandlers.search(args as { query?: string; foods?: number[]; keywords?: number[]; page?: number; page_size?: number; }, extra)
 );
 server.registerTool(
-  'get_recipe',
+  toolsByName.get_recipe.name,
   {
-    title: 'Get recipe',
-    description: 'Get full recipe details by ID. Returns the complete recipe in schema.org/Recipe format for consistency with import. Use this to verify imports or inspect recipe content.',
-    inputSchema: tools[11].inputSchema
+    title: toolsByName.get_recipe.title,
+    description: toolsByName.get_recipe.description,
+    inputSchema: toolsByName.get_recipe.inputSchema
   },
   (args: unknown, extra: unknown) => recipeHandlers.get(args as { recipe_id: number }, extra)
 );

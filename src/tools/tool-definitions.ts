@@ -31,6 +31,8 @@ export interface ToolDefinition {
 
 /** All available tools in the Tandoor MCP server */
 export const tools: ToolDefinition[] = [
+  // Tools are also available via toolsByName for direct name-based access
+
   {
     name: 'import_recipe_from_json',
     title: 'Import recipe from JSON',
@@ -104,6 +106,11 @@ export const tools: ToolDefinition[] = [
     inputSchema: getRecipeInputSchema
   }
 ];
+
+/** Map of tools by name for direct access by tool name */
+export const toolsByName = Object.fromEntries(
+  tools.map(t => [t.name, t])
+) as Record<string, ToolDefinition>;
 
 /** List all tools handler for server.test.ts */
 export const listToolsHandler = async (): Promise<{ tools: typeof tools }> => ({

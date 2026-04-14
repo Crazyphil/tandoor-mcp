@@ -339,10 +339,37 @@ export function convertSchemaOrgToTandoor(
 
   payload.steps = finalSteps;
 
-  // Handle nutrition - map to Tandoor's nutrition JSON field
+  // Handle nutrition - transform Schema.org format to Tandoor format
+  // Schema.org uses: calories, carbohydrateContent, proteinContent, fatContent (strings with units)
+  // Tandoor expects: calories, carbohydrates, proteins, fats (numbers, all required)
   if (recipe.nutrition && typeof recipe.nutrition === 'object') {
-    payload.nutrition = recipe.nutrition;
-    field_transformations.push('nutrition information included in recipe');
+    const nutrition: Record<string, number> = {};
+
+    // Helper to parse numeric values from strings like "200 kcal" or "30g"
+    const parseNutritionValue = (val: string | number | undefined): number | undefined => {
+      if (val === undefined) return undefined;
+      if (typeof val === 'number') return val;
+      const match = String(val).match(/^(\d+(?:\.\d+)?)/);
+      return match ? parseFloat(match[1]) : undefined;
+    };
+
+    const calories = parseNutritionValue(recipe.nutrition.calories);
+    const carbohydrates = parseNutritionValue(recipe.nutrition.carbohydrateContent);
+    const proteins = parseNutritionValue(recipe.nutrition.proteinContent);
+    const fats = parseNutritionValue(recipe.nutrition.fatContent);
+
+    // Only include nutrition if at least one field has data
+    if (calories !== undefined || carbohydrates !== undefined ||
+        proteins !== undefined || fats !== undefined) {
+      // Tandoor requires all fields - default missing ones to 0
+      nutrition.calories = calories ?? 0;
+      nutrition.carbohydrates = carbohydrates ?? 0;
+      nutrition.proteins = proteins ?? 0;
+      nutrition.fats = fats ?? 0;
+
+      payload.nutrition = nutrition;
+      field_transformations.push('nutrition information mapped from Schema.org format to Tandoor format');
+    }
   }
 
   // Track all missing entities
@@ -1088,10 +1115,37 @@ export async function convertSchemaOrgToTandoorAsync(
 
   payload.steps = finalSteps;
 
-  // Handle nutrition
+  // Handle nutrition - transform Schema.org format to Tandoor format
+  // Schema.org uses: calories, carbohydrateContent, proteinContent, fatContent (strings with units)
+  // Tandoor expects: calories, carbohydrates, proteins, fats (numbers, all required)
   if (recipe.nutrition && typeof recipe.nutrition === 'object') {
-    payload.nutrition = recipe.nutrition;
-    field_transformations.push('nutrition information included in recipe');
+    const nutrition: Record<string, number> = {};
+
+    // Helper to parse numeric values from strings like "200 kcal" or "30g"
+    const parseNutritionValue = (val: string | number | undefined): number | undefined => {
+      if (val === undefined) return undefined;
+      if (typeof val === 'number') return val;
+      const match = String(val).match(/^([\d.]+)/);
+      return match ? parseFloat(match[1]) : undefined;
+    };
+
+    const calories = parseNutritionValue(recipe.nutrition.calories);
+    const carbohydrates = parseNutritionValue(recipe.nutrition.carbohydrateContent);
+    const proteins = parseNutritionValue(recipe.nutrition.proteinContent);
+    const fats = parseNutritionValue(recipe.nutrition.fatContent);
+
+    // Only include nutrition if at least one field has data
+    if (calories !== undefined || carbohydrates !== undefined ||
+        proteins !== undefined || fats !== undefined) {
+      // Tandoor requires all fields - default missing ones to 0
+      nutrition.calories = calories ?? 0;
+      nutrition.carbohydrates = carbohydrates ?? 0;
+      nutrition.proteins = proteins ?? 0;
+      nutrition.fats = fats ?? 0;
+
+      payload.nutrition = nutrition;
+      field_transformations.push('nutrition information mapped from Schema.org format to Tandoor format');
+    }
   }
 
   // Handle keywords using async resolution

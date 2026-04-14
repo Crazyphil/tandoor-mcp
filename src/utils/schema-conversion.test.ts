@@ -309,7 +309,7 @@ describe('convertSchemaOrgToTandoor', () => {
     expect(payload.steps[2].instruction).toBe('Cook pasta');
   });
 
-  it('should include nutrition field when provided', () => {
+  it('should transform nutrition from Schema.org to Tandoor format', () => {
     const recipe: SchemaOrgRecipe = {
       name: 'Test',
       recipeIngredient: ['1 pasta'],
@@ -324,13 +324,96 @@ describe('convertSchemaOrgToTandoor', () => {
 
     const { payload, field_transformations } = convertSchemaOrgToTandoor(recipe, mockEntityMap);
 
+    // Schema.org format -> Tandoor format
     expect(payload.nutrition).toEqual({
-      calories: '200',
-      carbohydrateContent: '30g',
-      proteinContent: '10g',
-      fatContent: '5g'
+      calories: 200,
+      carbohydrates: 30,
+      proteins: 10,
+      fats: 5
     });
     expect(field_transformations.some((t: string) => t.includes('nutrition'))).toBe(true);
+  });
+
+  it('should handle numeric nutrition values', () => {
+    const recipe: SchemaOrgRecipe = {
+      name: 'Test',
+      recipeIngredient: ['1 pasta'],
+      recipeInstructions: ['Cook'],
+      nutrition: {
+        calories: 150,
+        carbohydrateContent: 20,
+        proteinContent: 8,
+        fatContent: 4
+      }
+    };
+
+    const { payload } = convertSchemaOrgToTandoor(recipe, mockEntityMap);
+
+    expect(payload.nutrition).toEqual({
+      calories: 150,
+      carbohydrates: 20,
+      proteins: 8,
+      fats: 4
+    });
+  });
+
+  it('should default missing nutrition fields to 0', () => {
+    const recipe: SchemaOrgRecipe = {
+      name: 'Test',
+      recipeIngredient: ['1 pasta'],
+      recipeInstructions: ['Cook'],
+      nutrition: {
+        calories: '300',
+        // Missing: carbohydrateContent, proteinContent, fatContent
+      }
+    };
+
+    const { payload } = convertSchemaOrgToTandoor(recipe, mockEntityMap);
+
+    // Missing fields should default to 0
+    expect(payload.nutrition).toEqual({
+      calories: 300,
+      carbohydrates: 0,
+      proteins: 0,
+      fats: 0
+    });
+  });
+
+  it('should handle partial nutrition data gracefully', () => {
+    const recipe: SchemaOrgRecipe = {
+      name: 'Test',
+      recipeIngredient: ['1 pasta'],
+      recipeInstructions: ['Cook'],
+      nutrition: {
+        fatContent: '10g'
+        // Only one field provided
+      }
+    };
+
+    const { payload } = convertSchemaOrgToTandoor(recipe, mockEntityMap);
+
+    expect(payload.nutrition).toEqual({
+      calories: 0,
+      carbohydrates: 0,
+      proteins: 0,
+      fats: 10
+    });
+  });
+
+  it('should skip nutrition object if all fields are missing', () => {
+    const recipe: SchemaOrgRecipe = {
+      name: 'Test',
+      recipeIngredient: ['1 pasta'],
+      recipeInstructions: ['Cook'],
+      nutrition: {
+        // Empty nutrition object
+        someOtherField: 'value'
+      }
+    };
+
+    const { payload } = convertSchemaOrgToTandoor(recipe, mockEntityMap);
+
+    expect(payload.nutrition).toBeUndefined();
   });
 
   it('should append author attribution to last step instruction', () => {

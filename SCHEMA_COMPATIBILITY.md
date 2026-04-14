@@ -52,7 +52,7 @@ This document maps schema.org/Recipe fields to Tandoor's data model, documenting
 
 | Schema.org Field | Tandoor Field | Status | Implementation Details |
 |------------------|---------------|--------|------------------------|
-| `nutrition` | `Recipe.nutrition` | ✅ | Direct JSON mapping to Tandoor's nutrition field. All nutrition properties preserved (calories, protein, fat, etc.). |
+| `nutrition` | `Recipe.nutrition` | 🔀 | Transformed to Tandoor format. Schema.org fields mapped: `calories`→`calories`, `carbohydrateContent`→`carbohydrates`, `proteinContent`→`proteins`, `fatContent`→`fats`. String values parsed to numbers (e.g., "30g"→30). Missing fields default to 0 (Tandoor requires all 4 fields). |
 
 ## Ignored Fields (Tandoor Has No Concept)
 
@@ -140,11 +140,22 @@ The `parseIsoDuration()` function handles ISO 8601 durations and maps them to re
 - 📝 `totalTime`: Validated against sum of prep + cook; noted in transformations if different
 
 ### Nutrition Information ✅ IMPLEMENTED
-**Mapping**: `nutrition` → `Recipe.nutrition` JSON field
+**Mapping**: `nutrition` → `Recipe.nutrition` JSON field (transformed)
+
+**Field Name Mapping**:
+| Schema.org | Tandoor | Notes |
+|------------|---------|-------|
+| `calories` | `calories` | Parsed from string (e.g., "200 kcal" → 200) |
+| `carbohydrateContent` | `carbohydrates` | Parsed from string (e.g., "30g" → 30) |
+| `proteinContent` | `proteins` | Parsed from string (e.g., "10g" → 10) |
+| `fatContent` | `fats` | Parsed from string (e.g., "5g" → 5) |
 
 **Implementation**:
-- ✅ All nutrition properties stored as JSON object in Tandoor's `nutrition` field
-- ✅ Common fields like `calories`, `proteinContent`, `fatContent`, `carbohydrateContent` preserved
+- ✅ Schema.org nutrition object transformed to Tandoor format
+- ✅ String values parsed to extract numeric portion
+- ✅ Missing fields default to 0 (Tandoor requires all 4 fields: calories, carbohydrates, proteins, fats)
+- ✅ Partial nutrition data supported (e.g., only calories provided, others default to 0)
+- ✅ If no recognizable nutrition fields present, nutrition object is omitted
 
 ### Author & Diet Fields ✅ IMPLEMENTED
 **Author Mapping**: `author.name` → appended to last step's instruction in Markdown italics (`*Author Name*`)

@@ -46,14 +46,14 @@ export const nutritionSchema = z.record(z.string(), z.unknown())
  * This is the main recipe structure from schema.org/Recipe
  */
 export const recipeSchema = z.object({
-  name: z.string().describe("Recipe name/title (required)"),
+  name: z.string().min(1).describe("Recipe name/title (required)"),
 
   description: z.string().optional().describe("Short recipe description, max 512 characters"),
 
-  recipeIngredient: z.array(z.string())
+  recipeIngredient: z.array(z.string()).min(1)
     .describe("List of ingredients of the whole recipe as strings (e.g., '2 cups flour', '1 onion, chopped', 'salt'). Format: [amount] [unit] [food name][, optional note]. Allows amount- and unit-less ingredients. Prefer using recipeInstructions.recipeIngredient for per-step ingredients when possible for better organization."),
 
-  recipeInstructions: z.array(z.union([z.string(), recipeInstructionSchema]))
+  recipeInstructions: z.array(z.union([z.string(), recipeInstructionSchema])).min(1)
     .describe("Cooking instructions as strings or structured HowToStep objects. Supports per-step ingredients via recipeIngredient property on HowToStep objects."),
 
   recipeYield: z.union([z.string(), z.number()]).optional()

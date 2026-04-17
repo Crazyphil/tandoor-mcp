@@ -446,19 +446,6 @@ describe('convertSchemaOrgToTandoor', () => {
     expect(payload.steps[0].instruction).toContain('*J. Kenji López-Alt*');
   });
 
-  it('should warn about datePublished being ignored', () => {
-    const recipe: SchemaOrgRecipe = {
-      name: 'Test',
-      recipeIngredient: ['1 pasta'],
-      recipeInstructions: ['Cook'],
-      datePublished: '2023-06-15'
-    };
-
-    const { warnings } = convertSchemaOrgToTandoor(recipe, mockEntityMap);
-
-    expect(warnings.some((w: string) => w.includes('datePublished') && w.includes('not supported'))).toBe(true);
-  });
-
   it('should map prepTime to working_time at recipe level', () => {
     const recipe: SchemaOrgRecipe = {
       name: 'Test',

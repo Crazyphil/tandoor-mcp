@@ -293,11 +293,6 @@ export function convertSchemaOrgToTandoor(
     field_transformations.push(`author '${recipe.author.name}' appended to last step as italicized attribution`);
   }
 
-  // Add warning for datePublished if present
-  if (recipe.datePublished) {
-    warnings.push(`datePublished ('${recipe.datePublished}') not supported by Tandoor and has been ignored`);
-  }
-
   warnings.push(...instructionWarnings);
 
   // Handle ingredients - recipe-level always go to first step, step-level go to specific steps
@@ -609,7 +604,6 @@ export function identifyIgnoredFields(recipe: SchemaOrgRecipe): string[] {
     'recipeCuisine',
     'sourceUrl',
     'author',
-    'datePublished',
     'nutrition',
     'suitableForDiet',
     '@context',

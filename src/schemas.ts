@@ -73,16 +73,14 @@ export const recipeSchema = z.object({
   keywords: z.array(z.string()).optional()
     .describe("Keywords/tags for the recipe (e.g., ['vegetarian', 'quick']). Must exist in Tandoor before use."),
 
-  recipeCategory: z.string().optional().describe("Recipe category (e.g., 'Dinner', 'Dessert')"),
+  recipeCategory: z.string().optional().describe("Recipe category (e.g., 'Dinner', 'Dessert'). Will be converted to a keyword in Tandoor if it exists, or ignored otherwise."),
 
   recipeCuisine: z.union([z.string(), z.array(z.string())]).optional()
-    .describe("Recipe cuisine (e.g., 'Italian', 'Mexican') - single value or array"),
+    .describe("Recipe cuisine (e.g., 'Italian', 'Mexican') - single value or array. Will be converted to a keyword in Tandoor if it exists, or ignored otherwise."),
 
   sourceUrl: z.string().optional().describe("Original source URL where the recipe was found"),
 
   author: authorSchema.optional().describe("Recipe author information"),
-
-  datePublished: z.string().optional().describe("Publication date in ISO 8601 format"),
 
   nutrition: nutritionSchema
 });

@@ -54,17 +54,15 @@ This document maps schema.org/Recipe fields to Tandoor's data model, documenting
 |------------------|---------------|--------|------------------------|
 | `nutrition` | `Recipe.nutrition` | 🔀 | Transformed to Tandoor format. Schema.org fields mapped: `calories`→`calories`, `carbohydrateContent`→`carbohydrates`, `proteinContent`→`proteins`, `fatContent`→`fats`. String values parsed to numbers (e.g., "30g"→30). Missing fields default to 0 (Tandoor requires all 4 fields). |
 
-## Ignored Fields (Tandoor Has No Concept)
+## Field Support Policy
 
-These fields are recognized but cannot be imported. They appear in `mapping_notes.ignored_fields`:
+**Any schema.org/Recipe field not listed in the compatibility matrix above is NOT supported.**
 
-- `datePublished` - No publishing date field in Tandoor
-- `estimatedCost` - No cost field in Tandoor
-- `aggregateRating` - No rating storage in Tandoor
-- `review` - No review concept
-- `tool` - No equipment/tools field
-- `supply` - No supplies field
-- `recipeInstructions` → `HowToSection` (nested sections) - Tandoor has flat steps only
+When importing a recipe, any unsupported fields will be:
+1. Listed in `mapping_notes.ignored_fields` in the import response
+2. Ignored during the import process (no data loss, but field is not stored)
+
+This approach keeps the documentation maintainable - we only document what we support, and everything else is handled consistently by the generic field detection mechanism.
 
 ---
 
@@ -164,7 +162,7 @@ The `parseIsoDuration()` function handles ISO 8601 durations and maps them to re
 - Schema.org values normalized (e.g., "GlutenFreeDiet" → "gluten free")
 - Mapped to keyword if exists; warning if not found
 
-**datePublished**: 📝 Not supported by Tandoor - warning generated if field has value
+
 
 ### Recipe Instructions Structure ✅ MOSTLY IMPLEMENTED
 **Current State**:
@@ -224,7 +222,7 @@ The Recipe-level `recipeIngredient` property puts all ingredients in the recipe'
     "field_transformations": [
       "servings derived from recipeYield: 4 servings"
     ],
-    "ignored_fields": ["estimatedCost", "aggregateRating", "datePublished"],
+    "ignored_fields": ["estimatedCost", "aggregateRating"],
     "warnings": [
       "recipeCategory 'Main Dish' not found. Use list_all_keywords() to see exact names; consider creating keyword if needed."
     ]
@@ -280,8 +278,7 @@ interface SchemaOrgRecipe {
   image?: string | string[];
   url?: string;
   author?: { name?: string };
-  datePublished?: string;
-  
+
   // Time
   prepTime?: string;  // ISO 8601 duration
   cookTime?: string;  // ISO 8601 duration

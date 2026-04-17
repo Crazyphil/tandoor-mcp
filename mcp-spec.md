@@ -42,7 +42,7 @@ Auth: token query or header (e.g., `Authorization: Token <token>`)
 - Optional fields with transformation or ignored:
   - `recipeCategory`, `recipeCuisine` → mapped to `keywords` if provided; ensure these exist or create them
   - `nutrition` → stored as `Recipe.nutrition` object (Tandoor JSON field)
-  - `author`, `datePublished`, `url` → stored in `Recipe.source_url` or metadata (if supported)
+  - `author`, `url` → stored in `Recipe.source_url` or metadata (if supported)
   - Other schema.org fields (e.g., `estimatedCost`, `aggregateRating`) → ignored; agent will be notified in response
 
 - **Ingredient Format**: The `recipeIngredient` array must contain strings formatted as `[amount] [unit] [food name][, optional note]`, where:

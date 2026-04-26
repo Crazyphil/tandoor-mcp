@@ -17,7 +17,7 @@ import * as z from 'zod/v4';
  */
 export const authorSchema = z.object({
   '@type': z.string().optional().describe("Schema.org type, typically 'Person' or 'Organization'"),
-  name: z.string().optional().describe("Author name")
+  name: z.string().optional().describe('Author name')
 });
 
 /**
@@ -26,11 +26,11 @@ export const authorSchema = z.object({
  */
 export const recipeInstructionSchema = z.object({
   '@type': z.string().optional().describe("Schema.org type, typically 'HowToStep'"),
-  name: z.string().optional().describe("Step name or title (optional), for user-friendly structuring of the recipe"),
-  text: z.string().describe("The instruction text for this step. Supports Markdown formatting."),
+  name: z.string().optional().describe('Step name or title (optional), for user-friendly structuring of the recipe'),
+  text: z.string().describe('The instruction text for this step. Supports Markdown formatting.'),
   /** Non-standard extension: per-step ingredient definitions */
   recipeIngredient: z.union([z.array(z.string()), z.string()]).optional()
-    .describe("Ingredients specific to this step (non-standard extension). Can be a single string or array of strings in the same format as the global recipeIngredients.")
+    .describe('Ingredients specific to this step (non-standard extension). Can be a single string or array of strings in the same format as the global recipeIngredients.')
 });
 
 /**
@@ -39,36 +39,36 @@ export const recipeInstructionSchema = z.object({
  */
 export const nutritionSchema = z.record(z.string(), z.unknown())
   .optional()
-  .describe("Nutritional information as key-value pairs (e.g., calories, fatContent, proteinContent)");
+  .describe('Nutritional information as key-value pairs (e.g., calories, fatContent, proteinContent)');
 
 /**
  * Schema.org Recipe schema for import
  * This is the main recipe structure from schema.org/Recipe
  */
 export const recipeSchema = z.object({
-  name: z.string().min(1).describe("Recipe name/title (required)"),
+  name: z.string().min(1).describe('Recipe name/title (required)'),
 
-  description: z.string().optional().describe("Short recipe description, max 512 characters"),
+  description: z.string().optional().describe('Short recipe description, max 512 characters'),
 
   recipeIngredient: z.array(z.string()).min(1)
     .describe("List of ingredients of the whole recipe as strings (e.g., '2 cups flour', '1 onion, chopped', 'salt'). Format: [amount] [unit] [food name][, optional note]. Allows amount- and unit-less ingredients. Prefer using recipeInstructions.recipeIngredient for per-step ingredients when possible for better organization."),
 
   recipeInstructions: z.array(z.union([z.string(), recipeInstructionSchema])).min(1)
-    .describe("Cooking instructions as strings or structured HowToStep objects. Supports per-step ingredients via recipeIngredient property on HowToStep objects."),
+    .describe('Cooking instructions as strings or structured HowToStep objects. Supports per-step ingredients via recipeIngredient property on HowToStep objects.'),
 
   recipeYield: z.union([z.string(), z.number()]).optional()
     .describe("Recipe yield (e.g., '4 slices', '1 loaf'). Use servings attribute for generic number-only servings."),
 
-  servings: z.number().optional().describe("Number of (generic) servings the recipe makes. Use recipeYield attribute when you want to specify a more specific kind of yield."),
+  servings: z.number().optional().describe('Number of (generic) servings the recipe makes. Use recipeYield attribute when you want to specify a more specific kind of yield.'),
 
   prepTime: z.string().optional().describe("Preparation time in ISO 8601 duration format (e.g., 'PT30M' for 30 minutes)"),
 
   cookTime: z.string().optional().describe("Cooking time in ISO 8601 duration format (e.g., 'PT1H' for 1 hour)"),
 
-  totalTime: z.string().optional().describe("Total time in ISO 8601 duration format"),
+  totalTime: z.string().optional().describe('Total time in ISO 8601 duration format'),
 
   image: z.union([z.string(), z.array(z.string())]).optional()
-    .describe("Recipe image URL(s) - single URL or array of URLs"),
+    .describe('Recipe image URL(s) - single URL or array of URLs'),
 
   keywords: z.array(z.string()).optional()
     .describe("Keywords/tags for the recipe (e.g., ['vegetarian', 'quick']). Must exist in Tandoor before use."),
@@ -78,9 +78,9 @@ export const recipeSchema = z.object({
   recipeCuisine: z.union([z.string(), z.array(z.string())]).optional()
     .describe("Recipe cuisine (e.g., 'Italian', 'Mexican') - single value or array. Will be converted to a keyword in Tandoor if it exists, or ignored otherwise."),
 
-  sourceUrl: z.string().optional().describe("Original source URL where the recipe was found"),
+  sourceUrl: z.string().optional().describe('Original source URL where the recipe was found'),
 
-  author: authorSchema.optional().describe("Recipe author information"),
+  author: authorSchema.optional().describe('Recipe author information'),
 
   nutrition: nutritionSchema
 });
@@ -93,7 +93,7 @@ export const recipeSchema = z.object({
  * Input schema for import_recipe_from_json tool
  */
 export const importRecipeInputSchema = z.object({
-  recipe: recipeSchema.describe("Complete schema.org/Recipe object to import into Tandoor. All referenced foods, units, and keywords must already exist in Tandoor.")
+  recipe: recipeSchema.describe('Complete schema.org/Recipe object to import into Tandoor. All referenced foods, units, and keywords must already exist in Tandoor.')
 });
 
 /**
@@ -101,10 +101,10 @@ export const importRecipeInputSchema = z.object({
  */
 export const paginationSchema = z.object({
   page: z.number().int().min(1).optional()
-    .describe("Page number (1-based, default: 1)"),
+    .describe('Page number (1-based, default: 1)'),
 
   page_size: z.number().int().min(1).max(100).optional()
-    .describe("Number of items per page (1-100, default: 20)")
+    .describe('Number of items per page (1-100, default: 20)')
 });
 
 /**
@@ -124,10 +124,7 @@ export const searchFoodInputSchema = z.object({
  */
 export const createFoodInputSchema = z.object({
   name: z.string().min(1).describe("Food name (e.g., 'onion', 'all-purpose flour')"),
-
-  plural_name: z.string().optional().describe("Plural form of the food name (e.g., 'onions', 'eggs')"),
-
-  url: z.string().optional().describe("URL to external food information (optional)")
+  plural_name: z.string().optional().describe("Plural form of the food name (e.g., 'onions', 'eggs')")
 });
 
 /**
@@ -147,10 +144,8 @@ export const searchUnitInputSchema = z.object({
  */
 export const createUnitInputSchema = z.object({
   name: z.string().min(1).describe("Unit name (e.g., 'cup', 'gram', 'tablespoon')"),
-
   plural_name: z.string().optional().describe("Plural form of the unit (e.g., 'cups', 'grams', 'tablespoons')"),
-
-  description: z.string().optional().describe("Description of the unit (optional)")
+  description: z.string().optional().describe('Description of the unit (optional)')
 });
 
 /**
@@ -183,61 +178,61 @@ export const searchRecipesInputSchema = z.object({
 
   // Food filters - use search_food() to find IDs
   foods: z.array(z.number()).optional()
-    .describe("Food IDs to include (OR - recipe must contain at least one). Use search_food() to find IDs."),
+    .describe('Food IDs to include (OR - recipe must contain at least one). Use search_food() to find IDs.'),
   foods_and: z.array(z.number()).optional()
-    .describe("Food IDs to include (AND - recipe must contain ALL of these). Use search_food() to find IDs."),
+    .describe('Food IDs to include (AND - recipe must contain ALL of these). Use search_food() to find IDs.'),
   foods_not: z.array(z.number()).optional()
-    .describe("Food IDs to exclude (OR - recipe must NOT contain any). Use search_food() to find IDs."),
+    .describe('Food IDs to exclude (OR - recipe must NOT contain any). Use search_food() to find IDs.'),
 
   // Keyword filters - use search_keyword() to find IDs
   keywords: z.array(z.number()).optional()
-    .describe("Keyword IDs to include (OR - recipe must have at least one). Use search_keyword() to find IDs."),
+    .describe('Keyword IDs to include (OR - recipe must have at least one). Use search_keyword() to find IDs.'),
   keywords_and: z.array(z.number()).optional()
-    .describe("Keyword IDs to include (AND - recipe must have ALL of these). Use search_keyword() to find IDs."),
+    .describe('Keyword IDs to include (AND - recipe must have ALL of these). Use search_keyword() to find IDs.'),
   keywords_not: z.array(z.number()).optional()
-    .describe("Keyword IDs to exclude (OR - recipe must NOT have any). Use search_keyword() to find IDs."),
+    .describe('Keyword IDs to exclude (OR - recipe must NOT have any). Use search_keyword() to find IDs.'),
 
   // Rating filters
   rating_gte: z.number().min(0).max(5).optional()
-    .describe("Minimum rating 0-5 (e.g., 4 for 4 stars and above)"),
+    .describe('Minimum rating 0-5 (e.g., 4 for 4 stars and above)'),
 
   // Times cooked filters
   timescooked_gte: z.number().int().min(0).optional()
-    .describe("Minimum times cooked (e.g., 5 for recipes cooked at least 5 times)"),
+    .describe('Minimum times cooked (e.g., 5 for recipes cooked at least 5 times)'),
 
   // Boolean flags
   all_ingredients_stocked: z.boolean().optional()
-    .describe("Only show recipes that can be made with stocked/on-hand ingredients"),
+    .describe('Only show recipes that can be made with stocked/on-hand ingredients'),
 
   // Sort order
   sort_order: z.enum([
-    "score",
-    "-score",
-    "name",
-    "-name",
-    "created_at",
-    "-created_at",
-    "lastcooked",
-    "-lastcooked",
-    "rating",
-    "-rating",
-    "times_cooked",
-    "-times_cooked",
-    "lastviewed",
-    "-lastviewed"
+    'score',
+    '-score',
+    'name',
+    '-name',
+    'created_at',
+    '-created_at',
+    'lastcooked',
+    '-lastcooked',
+    'rating',
+    '-rating',
+    'times_cooked',
+    '-times_cooked',
+    'lastviewed',
+    '-lastviewed'
   ]).optional()
     .describe("Sort order for results. Use prefix '-' for descending order (e.g., '-rating' for highest rated first)"),
 
   // Pagination
   page: z.number().int().min(1).optional()
-    .describe("Page number (1-based, default: 1)"),
+    .describe('Page number (1-based, default: 1)'),
   page_size: z.number().int().min(1).max(100).optional()
-    .describe("Number of items per page (1-100, default: 20)")
+    .describe('Number of items per page (1-100, default: 20)')
 });
 
 /**
  * Input schema for get_recipe tool
  */
 export const getRecipeInputSchema = z.object({
-  recipe_id: z.number().int().min(1).describe("Recipe ID to retrieve (positive integer)")
+  recipe_id: z.number().int().min(1).describe('Recipe ID to retrieve (positive integer)')
 });

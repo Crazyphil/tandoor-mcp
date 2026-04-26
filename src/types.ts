@@ -81,46 +81,6 @@ export interface TandoorStep {
   ingredients: TandoorIngredient[];
 }
 
-/** Extended ingredient type for API responses with nested entities */
-export interface TandoorIngredientResponse {
-  id?: number;
-  amount?: number;
-  unit?: {
-    id: number;
-    name: string;
-    plural_name?: string | null;
-    description?: string | null;
-  };
-  food: {
-    id: number;
-    name: string;
-    plural_name?: string | null;
-    description?: string;
-  };
-  note?: string | null;
-  order: number;
-  is_header?: boolean;
-  no_amount?: boolean;
-  original_text?: string | null;
-}
-
-/**
- * Tandoor ingredient for API payload (creation/update)
- * 
- * Note: API requires both 'amount' and 'unit' fields always present.
- * When no_amount=true, set amount=0 and unit can be null or any valid unit ID.
- */
-export interface TandoorIngredient {
-  amount: number; // Always required - use 0 when no_amount=true
-  unit: number | null; // unit ID - always required but can be null
-  food: number; // food ID
-  note?: string;
-  order: number;
-  is_header?: boolean;
-  no_amount?: boolean;
-  original_text?: string; // original input text for documentation
-}
-
 export interface TandoorFood {
   id: number;
   name: string;
@@ -134,6 +94,36 @@ export interface TandoorUnit {
   name: string;
   plural_name?: string | null;
   description?: string | null;
+}
+
+/** Extended ingredient type for API responses with nested entities */
+export interface TandoorIngredientResponse {
+  id?: number;
+  amount?: number;
+  unit?: TandoorUnit;
+  food: TandoorFood;
+  note?: string | null;
+  order: number;
+  is_header?: boolean;
+  no_amount?: boolean;
+  original_text?: string | null;
+}
+
+/**
+ * Tandoor ingredient for API payload (creation/update)
+ *
+ * Note: API requires both 'amount' and 'unit' fields always present.
+ * When no_amount=true, set amount=0 and unit can be null or any valid unit ID.
+ */
+export interface TandoorIngredient {
+  amount: number; // Always required - use 0 when no_amount=true
+  unit: number | null; // unit ID - always required but can be null
+  food: number; // food ID
+  note?: string;
+  order: number;
+  is_header?: boolean;
+  no_amount?: boolean;
+  original_text?: string; // original input text for documentation
 }
 
 export interface TandoorKeyword {
@@ -182,13 +172,23 @@ export interface TandoorRecipeResponse {
   };
 }
 
-export interface PaginatedResponse<T> {
+/** Raw Tandoor API paginated response (includes all fields from Tandoor) */
+export interface TandoorPaginatedResponse<T> {
   results: T[];
   count: number;
   page: number;
   page_size: number;
   has_next: boolean;
   has_previous: boolean;
+  next?: string | null;
+  previous?: string | null;
+}
+
+/** MCP-facing paginated response (filtered) */
+export interface PaginatedResponse<T> {
+  results: T[];
+  count: number;
+  page: number;
 }
 
 export interface ImportResult {
@@ -210,4 +210,67 @@ export interface ValidationError {
   error_code: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   details: any;
+}
+
+// ============================================================================
+// MCP Response Types (filtered/transformed for agents)
+// ============================================================================
+// These types define the lean responses returned to MCP agents.
+// They exclude Tandoor-internal fields, UI-only data, and fields not needed
+// for the recipe import workflow.
+
+/** Minimal food info for MCP agents */
+export interface Food {
+  id: number;
+  name: string;
+  plural_name?: string | null;
+}
+
+/** Minimal unit info for MCP agents */
+export interface Unit {
+  id: number;
+  name: string;
+  plural_name?: string | null;
+}
+
+/** Minimal keyword info for MCP agents */
+export interface Keyword {
+  id: number;
+  name: string;
+}
+
+/** Minimal ingredient info for MCP agents (nested in steps) */
+export interface Ingredient {
+  id?: number;
+  amount: number;
+  unit: Unit | null;
+  food: Food;
+  note?: string | null;
+  order: number;
+  is_header?: boolean;
+  no_amount?: boolean;
+}
+
+/** Minimal step info for MCP agents */
+export interface Step {
+  id: number;
+  name: string;
+  instruction: string;
+  order: number;
+  ingredients: Ingredient[];
+}
+
+/** Minimal recipe info for MCP agents */
+export interface Recipe {
+  id: number;
+  name: string;
+  description?: string | null;
+  servings?: number;
+  servings_text?: string;
+  source_url?: string | null;
+  image?: string | null;
+  keywords?: Keyword[];
+  steps?: Step[];
+  working_time?: number;
+  waiting_time?: number;
 }

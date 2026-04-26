@@ -92,13 +92,13 @@ Auth: token query or header (e.g., `Authorization: Token <token>`)
 ### Tool B: `list_all_foods()` (agent-facing)
 - Input: none (optional `page`, `page_size` for pagination).
 - Behavior: GET `/api/food/` with no query filter. Return paginated list of all foods in Tandoor.
-- Output: `{ results: [{ id, name, plural_name, substitute }], count, page, page_size, has_next, has_previous }` where `substitute` is an array of substitutable foods (read-only).
+- Output: `{ results: [{ id, name, plural_name }], count, page }` where results contain only the fields needed by agents. Substitute data and other Tandoor-internal fields are filtered out at runtime.
 - Use case: Agent fetches once at start of import workflow to build a local reference map, avoiding repeated search calls.
 
 ### Tool C: `search_food(query)` (agent-facing)
 - Input: search string (e.g., "onion", "tomatoes").
-- Behavior: GET `/api/food/?query=<query>` to find matching foods. Return list of matching foods with IDs, names, plural forms, and substitutes.
-- Output: array of food objects `{ id, name, plural_name, substitute }` where `substitute` lists foods that can substitute this one.
+- Behavior: GET `/api/food/?query=<query>` to find matching foods. Return list of matching foods with IDs, names, and plural forms.
+- Output: array of food objects `{ id, name, plural_name }`.
 - Use case: Refine or validate specific food matches when list_all_foods is insufficient.
 
 ### Tool D: `create_food(name, plural_name?)` (agent-facing)
@@ -111,13 +111,13 @@ Auth: token query or header (e.g., `Authorization: Token <token>`)
 ### Tool E: `list_all_units()` (agent-facing)
 - Input: none (optional `page`, `page_size` for pagination).
 - Behavior: GET `/api/unit/` with no query filter. Return paginated list of all units in Tandoor.
-- Output: `{ results: [{ id, name }], count, page, page_size, has_next, has_previous }`.
+- Output: `{ results: [{ id, name, plural_name }], count, page }`.
 - Use case: Agent fetches once at start to build reference map.
 
 ### Tool F: `search_unit(query)` (agent-facing)
 - Input: search string (e.g., "cup", "grams").
-- Behavior: GET `/api/unit/?query=<query>` to find matching units. Return list of matching units with IDs, names.
-- Output: array of unit objects `{ id, name }`.
+- Behavior: GET `/api/unit/?query=<query>` to find matching units. Return list of matching units with IDs, names, and plural forms.
+- Output: array of unit objects `{ id, name, plural_name }`.
 - Use case: Refine or validate specific unit matches.
 
 ### Tool G: `create_unit(name)` (agent-facing)
@@ -129,7 +129,7 @@ Auth: token query or header (e.g., `Authorization: Token <token>`)
 ### Tool H: `list_all_keywords()` (agent-facing)
 - Input: none (optional `page`, `page_size` for pagination).
 - Behavior: GET `/api/keyword/` with no query filter. Return paginated list of all keywords in Tandoor.
-- Output: `{ results: [{ id, name }], count, page, page_size, has_next, has_previous }`.
+- Output: `{ results: [{ id, name }], count, page }`.
 - Use case: Agent fetches once at start to build reference map.
 
 ### Tool I: `search_keyword(query)` (agent-facing)
@@ -160,7 +160,7 @@ Auth: token query or header (e.g., `Authorization: Token <token>`)
   - `page`, `page_size`: pagination
 - **Important**: Use `search_food()` and `search_keyword()` first to resolve names to IDs before calling this tool.
 - Behavior: GET `/api/recipe/` with the provided query parameters. Return paginated list of recipe overviews.
-- Output: `{ results: [recipe_overview], count, page, page_size, has_next, has_previous }`.
+- Output: `{ results: [recipe_overview], count, page }`.
 - Use case: Find recipes by ingredients/tags, browse existing recipes, check for duplicates.
 
 **Input Schema for Tool K** (for reference implementation):
@@ -237,19 +237,15 @@ To support agent validation and structured parsing, each tool returns results co
         "properties": {
           "id": { "type": "integer" },
           "name": { "type": "string" },
-          "plural_name": { "type": ["string", "null"] },
-          "substitute": { "type": "array", "items": { "type": "object" } }
+          "plural_name": { "type": ["string", "null"] }
         },
         "required": ["id", "name"]
       }
     },
     "count": { "type": "integer", "description": "Total count of foods (across all pages)" },
-    "page": { "type": "integer", "description": "Current page number (1-indexed)" },
-    "page_size": { "type": "integer", "description": "Number of items on this page" },
-    "has_next": { "type": "boolean", "description": "True if there are more pages after this one" },
-    "has_previous": { "type": "boolean", "description": "True if there are pages before this one" }
+    "page": { "type": "integer", "description": "Current page number (1-indexed)" }
   },
-  "required": ["results", "count", "page", "page_size", "has_next", "has_previous"]
+  "required": ["results", "count", "page"]
 }
 ```
 
@@ -263,8 +259,7 @@ Same as Tool B `results` array structure.
   "properties": {
     "id": { "type": "integer", "description": "Tandoor food ID (existing or newly created)" },
     "name": { "type": "string" },
-    "plural_name": { "type": ["string", "null"] },
-    "substitute": { "type": "array", "items": { "type": "object" } }
+    "plural_name": { "type": ["string", "null"] }
   },
   "required": ["id", "name"]
 }
@@ -281,18 +276,16 @@ Same as Tool B `results` array structure.
         "type": "object",
         "properties": {
           "id": { "type": "integer" },
-          "name": { "type": "string" }
+          "name": { "type": "string" },
+          "plural_name": { "type": ["string", "null"] }
         },
         "required": ["id", "name"]
       }
     },
     "count": { "type": "integer" },
-    "page": { "type": "integer", "description": "Current page number (1-indexed)" },
-    "page_size": { "type": "integer", "description": "Number of items on this page" },
-    "has_next": { "type": "boolean" },
-    "has_previous": { "type": "boolean" }
+    "page": { "type": "integer", "description": "Current page number (1-indexed)" }
   },
-  "required": ["results", "count", "page", "page_size", "has_next", "has_previous"]
+  "required": ["results", "count", "page"]
 }
 ```
 
@@ -305,20 +298,50 @@ Same as Tool E `results` array structure.
   "type": "object",
   "properties": {
     "id": { "type": "integer" },
-    "name": { "type": "string" }
+    "name": { "type": "string" },
+    "plural_name": { "type": ["string", "null"] }
   },
   "required": ["id", "name"]
 }
 ```
 
 ### Tool H Output Schema: `list_all_keywords`
-Same as Tool E structure (results array of `{ id, name }`), count, pagination.
+```json
+{
+  "type": "object",
+  "properties": {
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string" }
+        },
+        "required": ["id", "name"]
+      }
+    },
+    "count": { "type": "integer" },
+    "page": { "type": "integer", "description": "Current page number (1-indexed)" }
+  },
+  "required": ["results", "count", "page"]
+}
+```
 
 ### Tool I Output Schema: `search_keyword`
 Same as Tool H `results` array structure.
 
 ### Tool J Output Schema: `create_keyword`
-Same as Tool G structure (`{ id, name }`).
+```json
+{
+  "type": "object",
+  "properties": {
+    "id": { "type": "integer" },
+    "name": { "type": "string" }
+  },
+  "required": ["id", "name"]
+}
+```
 
 ### Tool K Output Schema: `search_recipes`
 ```json
@@ -339,12 +362,9 @@ Same as Tool G structure (`{ id, name }`).
       }
     },
     "count": { "type": "integer" },
-    "page": { "type": "integer", "description": "Current page number (1-indexed)" },
-    "page_size": { "type": "integer", "description": "Number of items on this page" },
-    "has_next": { "type": "boolean" },
-    "has_previous": { "type": "boolean" }
+    "page": { "type": "integer", "description": "Current page number (1-indexed)" }
   },
-  "required": ["results", "count", "page", "page_size", "has_next", "has_previous"]
+  "required": ["results", "count", "page"]
 }
 ```
 
@@ -356,10 +376,51 @@ Same as Tool G structure (`{ id, name }`).
     "id": { "type": "integer" },
     "name": { "type": "string" },
     "description": { "type": ["string", "null"] },
-    "recipeIngredient": { "type": "array" },
-    "recipeInstructions": { "type": "array" },
+    "servings": { "type": ["integer", "null"] },
+    "servings_text": { "type": ["string", "null"] },
+    "source_url": { "type": ["string", "null"] },
     "image": { "type": ["string", "null"] },
-    "keywords": { "type": "array", "items": { "type": "object" } }
+    "keywords": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string" }
+        },
+        "required": ["id", "name"]
+      }
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string" },
+          "instruction": { "type": "string" },
+          "order": { "type": "integer" },
+          "ingredients": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "integer" },
+                "amount": { "type": ["number", "null"] },
+                "unit": { "type": ["string", "null"] },
+                "food": { "type": ["string", "null"] },
+                "note": { "type": ["string", "null"] },
+                "order": { "type": "integer" },
+                "is_header": { "type": "boolean" },
+                "no_amount": { "type": "boolean" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "working_time": { "type": ["integer", "null"] },
+    "waiting_time": { "type": ["integer", "null"] }
   },
   "required": ["id", "name"]
 }
@@ -375,18 +436,23 @@ Tools that return paginated lists (`list_all_foods`, `list_all_units`, `list_all
 - **`page_size`** (optional, integer): Number of results per page. If omitted, defaults to 20. Maximum 100.
 
 Responses include pagination metadata to help agents navigate results:
+
 - **`count`**: Total number of items across all pages.
 - **`page`**: Current page number (1-indexed).
-- **`page_size`**: Number of items returned in this response.
-- **`has_next`**: Boolean indicating whether a next page exists. If `true`, agent can call tool again with `page = page + 1`.
-- **`has_previous`**: Boolean indicating whether a previous page exists. If `true`, agent can call tool again with `page = page - 1`.
+
+Agents can determine if more pages exist by comparing `page * page_size < count`. This lean pagination format removes unnecessary fields (`page_size`, `has_next`, `has_previous`) that agents can compute themselves, reducing response bloat.
 
 Example agent workflow:
 ```
 1. Agent calls: list_all_foods(page=1, page_size=50)
-2. Server returns: { results: [...50 items...], count: 237, page: 1, page_size: 50, has_next: true, has_previous: false }
-3. Agent wants next page, calls: list_all_foods(page=2, page_size=50)
-4. Server returns: { results: [...50 items...], count: 237, page: 2, page_size: 50, has_next: true, has_previous: true }
+2. Server returns: { results: [...50 items...], count: 237, page: 1 }
+3. Agent checks: 1 * 50 < 237 → more pages exist
+4. Agent calls: list_all_foods(page=2, page_size=50)
+5. Server returns: { results: [...50 items...], count: 237, page: 2 }
+6. Agent checks: 2 * 50 < 237 → more pages exist
+7. Agent calls: list_all_foods(page=5, page_size=50)
+8. Server returns: { results: [...37 items...], count: 237, page: 5 }
+9. Agent checks: 5 * 50 >= 237 → no more pages
 ```
 
 This parameter-based approach allows agents to easily construct subsequent tool calls without parsing or storing URIs.
@@ -508,39 +574,46 @@ import mcp
 # STEP 1: Load reference data (cached for duration of import session)
 # ============================================================================
 
+
+
 # Fetch all foods (paginate if needed)
 foods_db = {}
 page = 1
+page_size = 100
 while True:
-    food_list = mcp.list_all_foods(page=page, page_size=100)
+    food_list = mcp.list_all_foods(page=page, page_size=page_size)
     foods_db.update({ f["name"].lower(): f["id"] for f in food_list["results"] })
-    if not food_list["has_next"]:
+    if food_list["count"] <= page * page_size:
         break
     page += 1
 
 # Fetch all units (paginate if needed)
 units_db = {}
 page = 1
+page_size = 100
 while True:
-    unit_list = mcp.list_all_units(page=page, page_size=100)
+    unit_list = mcp.list_all_units(page=page, page_size=page_size)
     units_db.update({ u["name"].lower(): u["id"] for u in unit_list["results"] })
-    if not unit_list["has_next"]:
+    if unit_list["count"] <= page * page_size:
         break
     page += 1
 
 # Fetch all keywords (paginate if needed)
 keywords_db = {}
 page = 1
+page_size = 100
 while True:
-    keyword_list = mcp.list_all_keywords(page=page, page_size=100)
+    keyword_list = mcp.list_all_keywords(page=page, page_size=page_size)
     keywords_db.update({ k["name"].lower(): k["id"] for k in keyword_list["results"] })
-    if not keyword_list["has_next"]:
+    if keyword_list["count"] <= page * page_size:
         break
     page += 1
 
 # ============================================================================
 # STEP 2: Parse recipe from URL to schema.org/Recipe JSON
 # ============================================================================
+
+
 
 recipe_url = "https://example.com/recipes/tomato-pasta"
 recipe_json = parse_recipe_from_url(recipe_url)  # Agent's own parsing logic
@@ -560,6 +633,8 @@ recipe_json = parse_recipe_from_url(recipe_url)  # Agent's own parsing logic
 # STEP 3: Check for duplicates
 # ============================================================================
 
+
+
 # Note: search_recipes only accepts IDs for foods/keywords filtering (not names).
 # For this duplicate check, we search by recipe name via the 'query' parameter.
 # If agent needed to find recipes by ingredient names, it would first resolve
@@ -578,6 +653,8 @@ if existing["results"]:
 # ============================================================================
 # STEP 4: Resolve all entities (foods, units, keywords)
 # ============================================================================
+
+
 
 # Extract food names from ingredients
 foods_needed = set()
@@ -639,6 +716,8 @@ for keyword in recipe_json.get("keywords", []):
 # STEP 5: Call import tool
 # ============================================================================
 
+
+
 try:
     result = mcp.import_recipe_from_json(recipe_json)
     
@@ -666,6 +745,8 @@ except Exception as e:
 # ============================================================================
 # STEP 6: Verify import (optional, but recommended)
 # ============================================================================
+
+
 
 full_recipe = mcp.get_recipe(recipe_id)
 print(f"Verified recipe: {full_recipe['name']} ({full_recipe['id']})")

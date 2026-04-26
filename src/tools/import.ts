@@ -175,7 +175,6 @@ export class RecipeImporter {
    */
   private async checkForDuplicate(
     recipe: SchemaOrgRecipe,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _payload: TandoorRecipePayload
   ): Promise<{
     isDuplicate: boolean;

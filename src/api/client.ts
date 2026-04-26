@@ -5,12 +5,97 @@ import {
   TandoorKeyword,
   TandoorRecipePayload,
   TandoorRecipeResponse,
+  TandoorPaginatedResponse,
+  TandoorIngredientResponse,
+  TandoorStepResponse,
+  Food,
+  Unit,
+  Keyword,
+  Recipe,
+  Ingredient,
+  Step,
   PaginatedResponse
 } from '../types';
 
 export interface TandoorClientConfig {
   baseUrl: string;
   token: string;
+}
+
+// Generic helper to transform Tandoor paginated responses to MCP paginated responses
+function transformPaginatedResponse<T, U>(
+  response: TandoorPaginatedResponse<T>,
+  transformItem: (item: T) => U
+): PaginatedResponse<U> {
+  return {
+    results: response.results.map(transformItem),
+    count: response.count,
+    page: response.page
+  };
+}
+
+// Transformation functions to filter Tandoor API responses to MCP-facing types
+
+function transformFood(tandoorFood: TandoorFood): Food {
+  return {
+    id: tandoorFood.id,
+    name: tandoorFood.name,
+    plural_name: tandoorFood.plural_name
+  };
+}
+
+function transformUnit(tandoorUnit: TandoorUnit): Unit {
+  return {
+    id: tandoorUnit.id,
+    name: tandoorUnit.name,
+    plural_name: tandoorUnit.plural_name
+  };
+}
+
+function transformKeyword(tandoorKeyword: TandoorKeyword): Keyword {
+  return {
+    id: tandoorKeyword.id,
+    name: tandoorKeyword.name
+  };
+}
+
+function transformIngredient(tandoorIngredient: TandoorIngredientResponse): Ingredient {
+  return {
+    id: tandoorIngredient.id,
+    amount: tandoorIngredient.amount ?? 0,
+    unit: tandoorIngredient.unit ? transformUnit(tandoorIngredient.unit) : null,
+    food: transformFood(tandoorIngredient.food),
+    note: tandoorIngredient.note,
+    order: tandoorIngredient.order,
+    is_header: tandoorIngredient.is_header,
+    no_amount: tandoorIngredient.no_amount
+  };
+}
+
+function transformStep(tandoorStep: TandoorStepResponse): Step {
+  return {
+    id: tandoorStep.id,
+    name: tandoorStep.name,
+    instruction: tandoorStep.instruction,
+    order: tandoorStep.order,
+    ingredients: tandoorStep.ingredients.map(transformIngredient)
+  };
+}
+
+function transformRecipe(tandoorRecipe: TandoorRecipeResponse): Recipe {
+  return {
+    id: tandoorRecipe.id,
+    name: tandoorRecipe.name,
+    description: tandoorRecipe.description,
+    servings: tandoorRecipe.servings,
+    servings_text: tandoorRecipe.servings_text,
+    source_url: tandoorRecipe.source_url,
+    image: tandoorRecipe.image,
+    keywords: tandoorRecipe.keywords?.map(transformKeyword),
+    steps: tandoorRecipe.steps?.map(transformStep),
+    working_time: tandoorRecipe.working_time,
+    waiting_time: tandoorRecipe.waiting_time
+  };
 }
 
 export class TandoorApiClient {
@@ -27,109 +112,103 @@ export class TandoorApiClient {
   }
 
   /** Search foods by query */
-  async searchFood(query: string): Promise<TandoorFood[]> {
-    const response = await this.client.get<PaginatedResponse<TandoorFood>>(
+  async searchFood(query: string): Promise<Food[]> {
+    const response = await this.client.get<TandoorPaginatedResponse<TandoorFood>>(
       '/api/food/',
       { params: { query } }
     );
-    return response.data.results;
+    return response.data.results.map(transformFood);
   }
 
   /** List all foods with pagination */
-  async listAllFoods(page = 1, pageSize = 20): Promise<PaginatedResponse<TandoorFood>> {
-    const response = await this.client.get<PaginatedResponse<TandoorFood>>(
+  async listAllFoods(page = 1, pageSize = 20): Promise<PaginatedResponse<Food>> {
+    const response = await this.client.get<TandoorPaginatedResponse<TandoorFood>>(
       '/api/food/',
       { params: { page, page_size: pageSize } }
     );
-    return response.data;
+    return transformPaginatedResponse(response.data, transformFood);
   }
 
   /** Create a new food */
-  async createFood(name: string, pluralName?: string | null, url?: string): Promise<TandoorFood> {
-    const payload: { name: string; plural_name?: string | null; url?: string } = { name };
+  async createFood(name: string, pluralName?: string | null): Promise<Food> {
+    const payload: { name: string; plural_name?: string | null } = { name };
     if (pluralName !== undefined) {
       payload.plural_name = pluralName;
     }
-    if (url !== undefined) {
-      payload.url = url;
-    }
     const response = await this.client.post<TandoorFood>('/api/food/', payload);
-    return response.data;
+    return transformFood(response.data);
   }
 
   /** Search units by query */
-  async searchUnit(query: string): Promise<TandoorUnit[]> {
-    const response = await this.client.get<PaginatedResponse<TandoorUnit>>(
+  async searchUnit(query: string): Promise<Unit[]> {
+    const response = await this.client.get<TandoorPaginatedResponse<TandoorUnit>>(
       '/api/unit/',
       { params: { query } }
     );
-    return response.data.results;
+    return response.data.results.map(transformUnit);
   }
 
   /** List all units with pagination */
-  async listAllUnits(page = 1, pageSize = 20): Promise<PaginatedResponse<TandoorUnit>> {
-    const response = await this.client.get<PaginatedResponse<TandoorUnit>>(
+  async listAllUnits(page = 1, pageSize = 20): Promise<PaginatedResponse<Unit>> {
+    const response = await this.client.get<TandoorPaginatedResponse<TandoorUnit>>(
       '/api/unit/',
       { params: { page, page_size: pageSize } }
     );
-    return response.data;
+    return transformPaginatedResponse(response.data, transformUnit);
   }
 
   /** Create a new unit */
-  async createUnit(name: string, pluralName?: string | null, description?: string): Promise<TandoorUnit> {
-    const payload: { name: string; plural_name?: string | null; description?: string } = { name };
+  async createUnit(name: string, pluralName?: string | null): Promise<Unit> {
+    const payload: { name: string; plural_name?: string | null } = { name };
     if (pluralName !== undefined) {
       payload.plural_name = pluralName;
     }
-    if (description !== undefined) {
-      payload.description = description;
-    }
     const response = await this.client.post<TandoorUnit>('/api/unit/', payload);
-    return response.data;
+    return transformUnit(response.data);
   }
 
   /** Search keywords by query */
-  async searchKeyword(query: string): Promise<TandoorKeyword[]> {
-    const response = await this.client.get<PaginatedResponse<TandoorKeyword>>(
+  async searchKeyword(query: string): Promise<Keyword[]> {
+    const response = await this.client.get<TandoorPaginatedResponse<TandoorKeyword>>(
       '/api/keyword/',
       { params: { query } }
     );
-    return response.data.results;
+    return response.data.results.map(transformKeyword);
   }
 
   /** List all keywords with pagination */
-  async listAllKeywords(page = 1, pageSize = 20): Promise<PaginatedResponse<TandoorKeyword>> {
-    const response = await this.client.get<PaginatedResponse<TandoorKeyword>>(
+  async listAllKeywords(page = 1, pageSize = 20): Promise<PaginatedResponse<Keyword>> {
+    const response = await this.client.get<TandoorPaginatedResponse<TandoorKeyword>>(
       '/api/keyword/',
       { params: { page, page_size: pageSize } }
     );
-    return response.data;
+    return transformPaginatedResponse(response.data, transformKeyword);
   }
 
   /** Create a new keyword */
-  async createKeyword(name: string): Promise<TandoorKeyword> {
+  async createKeyword(name: string): Promise<Keyword> {
     const response = await this.client.post<TandoorKeyword>(
       '/api/keyword/',
       { name }
     );
-    return response.data;
+    return transformKeyword(response.data);
   }
 
   /** Create a new recipe */
-  async createRecipe(recipePayload: TandoorRecipePayload): Promise<TandoorRecipeResponse> {
+  async createRecipe(recipePayload: TandoorRecipePayload): Promise<Recipe> {
     const response = await this.client.post<TandoorRecipeResponse>(
       '/api/recipe/',
       recipePayload
     );
-    return response.data;
+    return transformRecipe(response.data);
   }
 
   /** Get recipe by ID */
-  async getRecipe(recipeId: number): Promise<TandoorRecipeResponse> {
+  async getRecipe(recipeId: number): Promise<Recipe> {
     const response = await this.client.get<TandoorRecipeResponse>(
       `/api/recipe/${recipeId}/`
     );
-    return response.data;
+    return transformRecipe(response.data);
   }
 
   /** Search recipes with filters
@@ -167,12 +246,12 @@ export class TandoorApiClient {
     // Pagination
     page?: number;
     page_size?: number;
-  }): Promise<PaginatedResponse<TandoorRecipeResponse>> {
-    const response = await this.client.get<PaginatedResponse<TandoorRecipeResponse>>(
+  }): Promise<PaginatedResponse<Recipe>> {
+    const response = await this.client.get<TandoorPaginatedResponse<TandoorRecipeResponse>>(
       '/api/recipe/',
       { params }
     );
-    return response.data;
+    return transformPaginatedResponse(response.data, transformRecipe);
   }
 
   /** Upload image to recipe

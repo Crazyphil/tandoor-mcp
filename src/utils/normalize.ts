@@ -5,9 +5,9 @@ import {
   TandoorIngredient,
   ValidationError,
   RecipeInstruction,
-  TandoorFood,
-  TandoorUnit,
-  TandoorKeyword
+  Food,
+  Unit,
+  Keyword
 } from '../types';
 import { TandoorApiClient } from '../api/client';
 
@@ -624,9 +624,9 @@ export function identifyIgnoredFields(recipe: SchemaOrgRecipe): string[] {
 // ============================================================================
 
 interface EntityCache {
-  foods: Map<string, TandoorFood | undefined>;
-  units: Map<string, TandoorUnit | undefined>;
-  keywords: Map<string, TandoorKeyword | undefined>;
+  foods: Map<string, Food | undefined>;
+  units: Map<string, Unit | undefined>;
+  keywords: Map<string, Keyword | undefined>;
 }
 
 interface AsyncMissingEntities {
@@ -636,16 +636,16 @@ interface AsyncMissingEntities {
 }
 
 interface AsyncEntityLookup {
-  getFood: (name: string) => Promise<TandoorFood | undefined>;
-  getUnit: (name: string) => Promise<TandoorUnit | undefined>;
-  getKeyword: (name: string) => Promise<TandoorKeyword | undefined>;
+  getFood: (name: string) => Promise<Food | undefined>;
+  getUnit: (name: string) => Promise<Unit | undefined>;
+  getKeyword: (name: string) => Promise<Keyword | undefined>;
   getMissingEntities: () => AsyncMissingEntities;
   /**
    * Find a unit but don't mark it as missing if not found.
    * Used for parsing ingredients where we try to extract potential units.
    * Returns undefined if not found without adding to missing entities.
    */
-  findUnit: (name: string) => Promise<TandoorUnit | undefined>;
+  findUnit: (name: string) => Promise<Unit | undefined>;
 }
 
 /**
@@ -675,7 +675,7 @@ export class EntityResolver implements AsyncEntityLookup {
     };
   }
 
-  async getFood(name: string): Promise<TandoorFood | undefined> {
+  async getFood(name: string): Promise<Food | undefined> {
     const normalizedName = name.toLowerCase().trim();
 
     // Check cache first
@@ -716,7 +716,7 @@ export class EntityResolver implements AsyncEntityLookup {
     }
   }
 
-  async getUnit(name: string): Promise<TandoorUnit | undefined> {
+  async getUnit(name: string): Promise<Unit | undefined> {
     const normalizedName = name.toLowerCase().trim();
     
     if (this.cache.units.has(normalizedName)) {
@@ -750,7 +750,7 @@ export class EntityResolver implements AsyncEntityLookup {
     }
   }
 
-  async getKeyword(name: string): Promise<TandoorKeyword | undefined> {
+  async getKeyword(name: string): Promise<Keyword | undefined> {
     const normalizedName = name.toLowerCase().trim();
 
     if (this.cache.keywords.has(normalizedName)) {
@@ -795,7 +795,7 @@ export class EntityResolver implements AsyncEntityLookup {
    * Used during ingredient parsing to test if a word might be a unit.
    * This is distinct from getUnit() which is used for explicit unit lookups.
    */
-  async findUnit(name: string): Promise<TandoorUnit | undefined> {
+  async findUnit(name: string): Promise<Unit | undefined> {
     const normalizedName = name.toLowerCase().trim();
     
     // Check cache first

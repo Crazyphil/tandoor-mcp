@@ -7,7 +7,7 @@
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import { createKeywordToolHandlers } from './keywords';
 import { TandoorApiClient } from '../api/client';
-import { PaginatedResponse, TandoorKeyword } from '../types';
+import { PaginatedResponse, Keyword } from '../types';
 
 describe('Keyword Tools', () => {
   let mockClient: jest.Mocked<TandoorApiClient>;
@@ -35,20 +35,17 @@ describe('Keyword Tools', () => {
 
   describe('listAll', () => {
     it('should list all keywords with pagination', async () => {
-      // Real API returns label (computed from name) and other read-only fields
-      const mockResponse: PaginatedResponse<TandoorKeyword> = {
+      // MCP response only includes id and name
+      const mockResponse: PaginatedResponse<Keyword> = {
         results: [
-          { id: 1, name: 'Italian', label: 'Italian', numchild: 0 },
-          { id: 2, name: 'vegetarian', label: 'vegetarian', numchild: 0 },
-          { id: 3, name: 'quick', label: 'quick', numchild: 0 },
-          { id: 4, name: 'healthy', label: 'healthy', description: 'Healthy recipes', numchild: 0 },
-          { id: 5, name: 'dessert', label: 'dessert', numchild: 0 }
+          { id: 1, name: 'Italian' },
+          { id: 2, name: 'vegetarian' },
+          { id: 3, name: 'quick' },
+          { id: 4, name: 'healthy' },
+          { id: 5, name: 'dessert' }
         ],
         count: 5,
-        page: 1,
-        page_size: 20,
-        has_next: false,
-        has_previous: false
+        page: 1
       };
 
       mockClient.listAllKeywords.mockResolvedValue(mockResponse);
@@ -57,17 +54,13 @@ describe('Keyword Tools', () => {
 
       expect(mockClient.listAllKeywords).toHaveBeenCalledWith(1, 20);
       expect(result.content[0].text).toContain('"count": 5');
-      expect(result.content[0].text).toContain('"has_next": false');
     });
 
     it('should use default pagination when not specified', async () => {
       mockClient.listAllKeywords.mockResolvedValue({
         results: [],
         count: 0,
-        page: 1,
-        page_size: 20,
-        has_next: false,
-        has_previous: false
+        page: 1
       });
 
       await handlers.listAll({}, undefined);
@@ -85,11 +78,11 @@ describe('Keyword Tools', () => {
   describe('search', () => {
     it('should search keywords by query', async () => {
       // Real API: returns keywords where name contains query (fuzzy search)
-      // API includes label (computed from name) and numchild in response
-      const mockResponse: TandoorKeyword[] = [
-        { id: 1, name: 'Italian', label: 'Italian', numchild: 0 },
-        { id: 2, name: 'Italian dinner', label: 'Italian dinner', numchild: 0 },
-        { id: 3, name: 'italian pasta', label: 'italian pasta', numchild: 0 }
+      // MCP response only includes id and name
+      const mockResponse: Keyword[] = [
+        { id: 1, name: 'Italian' },
+        { id: 2, name: 'Italian dinner' },
+        { id: 3, name: 'italian pasta' }
       ];
 
       mockClient.searchKeyword.mockResolvedValue(mockResponse);
@@ -128,12 +121,12 @@ describe('Keyword Tools', () => {
     it('should create a new keyword', async () => {
       // Real API: search returns keywords containing query, but no exact match
       mockClient.searchKeyword.mockResolvedValue([
-        { id: 100, name: 'gluten-free bread', label: 'gluten-free bread', numchild: 0 },
-        { id: 101, name: 'test_gluten_free_keyword', label: 'test_gluten_free_keyword', numchild: 0 }
+        { id: 100, name: 'gluten-free bread' },
+        { id: 101, name: 'test_gluten_free_keyword' }
       ]);
 
-      // API returns label (computed from name) and numchild (read-only)
-      const mockResponse: TandoorKeyword = { id: 10, name: 'gluten-free', label: 'gluten-free', numchild: 0 };
+      // MCP response only includes id and name
+      const mockResponse: Keyword = { id: 10, name: 'gluten-free' };
       mockClient.createKeyword.mockResolvedValue(mockResponse);
 
       const result = await handlers.create({ name: 'gluten-free' }, undefined);
@@ -142,7 +135,6 @@ describe('Keyword Tools', () => {
       expect(mockClient.createKeyword).toHaveBeenCalledWith('gluten-free');
       expect(result.content[0].text).toContain('"id": 10');
       expect(result.content[0].text).toContain('"name": "gluten-free"');
-      expect(result.content[0].text).toContain('"label": "gluten-free"');
     });
 
     it('should throw error for empty name', async () => {
@@ -153,11 +145,11 @@ describe('Keyword Tools', () => {
 
     it('should return entity_already_exists error when keyword already exists', async () => {
       // Real API: search returns keywords containing 'Italian', exact match exists
-      // API returns label (computed from name) and numchild (read-only)
+      // MCP response only includes id and name
       mockClient.searchKeyword.mockResolvedValue([
-        { id: 3, name: 'Italian', label: 'Italian', numchild: 0 },
-        { id: 4, name: 'Italian dinner', label: 'Italian dinner', numchild: 0 },
-        { id: 5, name: 'italian recipe', label: 'italian recipe', numchild: 0 }
+        { id: 3, name: 'Italian' },
+        { id: 4, name: 'Italian dinner' },
+        { id: 5, name: 'italian recipe' }
       ]);
 
       await expect(handlers.create({ name: 'Italian' }, undefined)).rejects.toThrow('entity_already_exists');
@@ -167,7 +159,7 @@ describe('Keyword Tools', () => {
     it('should throw generic error when API call fails', async () => {
       // Keyword doesn't exist: search returns results containing query but no exact match
       mockClient.searchKeyword.mockResolvedValue([
-        { id: 200, name: 'some_healthy_variety', label: 'some_healthy_variety', numchild: 0 }
+        { id: 200, name: 'some_healthy_variety' }
       ]);
       mockClient.createKeyword.mockRejectedValue(new Error('Internal server error'));
 

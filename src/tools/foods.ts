@@ -9,15 +9,13 @@
 
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import { TandoorApiClient } from '../api/client';
-import { handleApiError, createEntityExistsError, isAxiosError, isEntityExistsError } from '../utils/errors';
+import { handleApiError, createEntityExistsError, isEntityExistsError } from '../utils/errors';
 import { createJsonResponse } from '../utils/response';
-import { HTTP_CONFLICT } from '../constants';
 
 /**
  * Handler function type for MCP tools
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ToolHandler<T = any> = (args: T, extra: unknown) => Promise<{ content: { type: 'text'; text: string }[] }>;
+type ToolHandler<T = Record<string, unknown>> = (args: T, extra: unknown) => Promise<{ content: { type: 'text'; text: string }[] }>;
 
 /**
  * Food tool handlers interface
@@ -25,7 +23,7 @@ type ToolHandler<T = any> = (args: T, extra: unknown) => Promise<{ content: { ty
 interface FoodToolHandlers {
   listAll: ToolHandler<{ page?: number; page_size?: number }>;
   search: ToolHandler<{ query: string }>;
-  create: ToolHandler<{ name: string; plural_name?: string; url?: string }>;
+  create: ToolHandler<{ name: string; plural_name?: string }>;
 }
 
 /**
@@ -38,10 +36,8 @@ export function createFoodToolHandlers(client: TandoorApiClient): FoodToolHandle
   /**
    * List all foods with pagination
    */
-  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   const listAll = async (
     args: { page?: number; page_size?: number },
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _extra: unknown
   ): Promise<{ content: { type: 'text'; text: string }[] }> => {
     const { page = 1, page_size = 20 } = args;
@@ -59,7 +55,6 @@ export function createFoodToolHandlers(client: TandoorApiClient): FoodToolHandle
    */
   const search = async (
     args: { query: string },
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _extra: unknown
   ): Promise<{ content: { type: 'text'; text: string }[] }> => {
     const { query } = args;
@@ -67,7 +62,7 @@ export function createFoodToolHandlers(client: TandoorApiClient): FoodToolHandle
     if (!query || query.trim() === '') {
       throw new McpError(
         ErrorCode.InvalidParams,
-        "Missing required argument: query"
+        'Missing required argument: query'
       );
     }
 
@@ -87,16 +82,15 @@ export function createFoodToolHandlers(client: TandoorApiClient): FoodToolHandle
    * If not, creates the new food.
    */
   const create = async (
-    args: { name: string; plural_name?: string; url?: string },
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    args: { name: string; plural_name?: string },
     _extra: unknown
   ): Promise<{ content: { type: 'text'; text: string }[] }> => {
-    const { name, plural_name, url } = args;
+    const { name, plural_name } = args;
 
     if (!name || name.trim() === '') {
       throw new McpError(
         ErrorCode.InvalidParams,
-        "Missing required argument: name"
+        'Missing required argument: name'
       );
     }
 
@@ -114,16 +108,12 @@ export function createFoodToolHandlers(client: TandoorApiClient): FoodToolHandle
       }
 
       // Entity doesn't exist - create it
-      const result = await client.createFood(name, plural_name, url);
+      const result = await client.createFood(name, plural_name);
       return createJsonResponse(result);
     } catch (error) {
       // If it's already an entity_already_exists error, re-throw it directly
       if (isEntityExistsError(error)) {
         throw error;
-      }
-      // Handle 409 Conflict if Tandoor returns it in the future
-      if (isAxiosError(error) && error.response?.status === HTTP_CONFLICT) {
-        throw createEntityExistsError('food', name);
       }
       throw handleApiError(error, 'food', name);
     }

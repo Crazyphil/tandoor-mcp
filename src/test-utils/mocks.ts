@@ -6,7 +6,15 @@
 
 import { TandoorApiClient } from '../api/client';
 import { RecipeImporter } from '../tools/import';
-import { SchemaOrgRecipe, ImportResult, PaginatedResponse, TandoorFood, TandoorUnit, TandoorKeyword, TandoorRecipeResponse } from '../types';
+import {
+  SchemaOrgRecipe,
+  ImportResult,
+  TandoorPaginatedResponse,
+  TandoorFood,
+  TandoorUnit,
+  TandoorKeyword,
+  TandoorRecipeResponse,
+} from '../types';
 
 /**
  * Create a mock TandoorApiClient with all methods as jest mocks
@@ -25,7 +33,7 @@ export function createMockClient(): jest.Mocked<TandoorApiClient> {
     createRecipe: jest.fn(),
     getRecipe: jest.fn(),
     searchRecipes: jest.fn(),
-    uploadRecipeImage: jest.fn()
+    uploadRecipeImage: jest.fn(),
   } as unknown as jest.Mocked<TandoorApiClient>;
 }
 
@@ -34,14 +42,16 @@ export function createMockClient(): jest.Mocked<TandoorApiClient> {
  */
 export function createMockImporter(): jest.Mocked<RecipeImporter> {
   return {
-    importRecipeFromJson: jest.fn()
+    importRecipeFromJson: jest.fn(),
   } as unknown as jest.Mocked<RecipeImporter>;
 }
 
 /**
  * Create a valid Schema.org Recipe fixture for testing
  */
-export function createMockRecipe(overrides: Partial<SchemaOrgRecipe> = {}): SchemaOrgRecipe {
+export function createMockRecipe(
+  overrides: Partial<SchemaOrgRecipe> = {},
+): SchemaOrgRecipe {
   return {
     name: 'Test Recipe',
     description: 'A test recipe description',
@@ -57,14 +67,16 @@ export function createMockRecipe(overrides: Partial<SchemaOrgRecipe> = {}): Sche
     recipeCategory: 'Main Course',
     recipeCuisine: 'Italian',
     sourceUrl: 'https://example.com/recipe',
-    ...overrides
+    ...overrides,
   };
 }
 
 /**
  * Create a mock ImportResult for testing
  */
-export function createMockImportResult(overrides: Partial<ImportResult> = {}): ImportResult {
+export function createMockImportResult(
+  overrides: Partial<ImportResult> = {},
+): ImportResult {
   return {
     recipe_id: 123,
     recipe_url: 'https://tandoor.example.com/recipe/123/',
@@ -73,20 +85,20 @@ export function createMockImportResult(overrides: Partial<ImportResult> = {}): I
       image_status: 'uploaded',
       field_transformations: [],
       ignored_fields: [],
-      warnings: []
+      warnings: [],
     },
-    ...overrides
+    ...overrides,
   };
 }
 
 /**
  * Create a mock TandoorRecipeResponse for testing
- * 
+ *
  * Mimics real Tandoor API POST /api/recipe/ response structure
  * The real API returns full recipe with resolved nested entities
  */
 export function createMockRecipeResponse(
-  overrides: Partial<TandoorRecipeResponse> = {}
+  overrides: Partial<TandoorRecipeResponse> = {},
 ): TandoorRecipeResponse {
   return {
     id: 123,
@@ -109,39 +121,39 @@ export function createMockRecipeResponse(
             food: {
               id: 1,
               name: 'flour',
-              plural_name: null
+              plural_name: null,
             },
             unit: {
               id: 1,
               name: 'cup',
-              plural_name: 'cups'
+              plural_name: 'cups',
             },
             amount: 2,
             note: null,
             order: 0,
             is_header: false,
             no_amount: false,
-            original_text: null
-          }
-        ]
-      }
+            original_text: null,
+          },
+        ],
+      },
     ],
     working_time: 0,
     waiting_time: 0,
     internal: true,
-    ...overrides
+    ...overrides,
   } as TandoorRecipeResponse;
 }
 
 /**
- * Create a mock PaginatedResponse for foods
+ * Create a mock TandoorPaginatedResponse for foods
  *
  * Mimics real Tandoor API response structure including timestamp field
  */
 export function createMockFoodsResponse(
   foods: TandoorFood[] = [],
-  overrides: Partial<PaginatedResponse<TandoorFood>> = {}
-): PaginatedResponse<TandoorFood> {
+  overrides: Partial<TandoorPaginatedResponse<TandoorFood>> = {},
+): TandoorPaginatedResponse<TandoorFood> {
   return {
     results: foods,
     count: foods.length,
@@ -151,19 +163,19 @@ export function createMockFoodsResponse(
     has_previous: false,
     // Note: Real API also includes a timestamp field, but it's not in the TypeScript type
     // so we don't include it here to maintain type compatibility
-    ...overrides
+    ...overrides,
   };
 }
 
 /**
- * Create a mock PaginatedResponse for units
+ * Create a mock TandoorPaginatedResponse for units
  *
  * Mimics real Tandoor API response structure
  */
 export function createMockUnitsResponse(
   units: TandoorUnit[] = [],
-  overrides: Partial<PaginatedResponse<TandoorUnit>> = {}
-): PaginatedResponse<TandoorUnit> {
+  overrides: Partial<TandoorPaginatedResponse<TandoorUnit>> = {},
+): TandoorPaginatedResponse<TandoorUnit> {
   return {
     results: units,
     count: units.length,
@@ -171,19 +183,19 @@ export function createMockUnitsResponse(
     page_size: 20,
     has_next: false,
     has_previous: false,
-    ...overrides
+    ...overrides,
   };
 }
 
 /**
- * Create a mock PaginatedResponse for keywords
+ * Create a mock TandoorPaginatedResponse for keywords
  *
  * Mimics real Tandoor API response structure
  */
 export function createMockKeywordsResponse(
   keywords: TandoorKeyword[] = [],
-  overrides: Partial<PaginatedResponse<TandoorKeyword>> = {}
-): PaginatedResponse<TandoorKeyword> {
+  overrides: Partial<TandoorPaginatedResponse<TandoorKeyword>> = {},
+): TandoorPaginatedResponse<TandoorKeyword> {
   return {
     results: keywords,
     count: keywords.length,
@@ -191,12 +203,12 @@ export function createMockKeywordsResponse(
     page_size: 20,
     has_next: false,
     has_previous: false,
-    ...overrides
+    ...overrides,
   };
 }
 
 /**
- * Create a mock PaginatedResponse for recipes
+ * Create a mock TandoorPaginatedResponse for recipes
  *
  * Mimics real Tandoor API response structure
  * Note: Recipe search returns count: 0 and empty results for non-existent queries
@@ -204,8 +216,8 @@ export function createMockKeywordsResponse(
  */
 export function createMockRecipesResponse(
   recipes: TandoorRecipeResponse[] = [],
-  overrides: Partial<PaginatedResponse<TandoorRecipeResponse>> = {}
-): PaginatedResponse<TandoorRecipeResponse> {
+  overrides: Partial<TandoorPaginatedResponse<TandoorRecipeResponse>> = {},
+): TandoorPaginatedResponse<TandoorRecipeResponse> {
   return {
     results: recipes,
     count: recipes.length,
@@ -213,7 +225,7 @@ export function createMockRecipesResponse(
     page_size: 20,
     has_next: false,
     has_previous: false,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -230,7 +242,7 @@ export const foodFixtures = {
   onion: { id: 1, name: 'onion', plural_name: 'onions' },
   tomato: { id: 2, name: 'tomato', plural_name: 'tomatoes' },
   garlic: { id: 3, name: 'garlic', plural_name: 'garlic' },
-  flour: { id: 4, name: 'flour', plural_name: 'flour' }
+  flour: { id: 4, name: 'flour', plural_name: 'flour' },
 };
 
 /**
@@ -243,7 +255,7 @@ export const unitFixtures = {
   cup: { id: 1, name: 'cup', plural_name: 'cups' },
   tsp: { id: 2, name: 'tsp', plural_name: null },
   tbsp: { id: 3, name: 'tbsp', plural_name: null },
-  gram: { id: 4, name: 'g', plural_name: 'g' }
+  gram: { id: 4, name: 'g', plural_name: 'g' },
 };
 
 /**
@@ -256,5 +268,5 @@ export const keywordFixtures = {
   dinner: { id: 1, name: 'dinner' },
   easy: { id: 2, name: 'easy' },
   vegetarian: { id: 3, name: 'vegetarian' },
-  quick: { id: 4, name: 'quick' }
+  quick: { id: 4, name: 'quick' },
 };

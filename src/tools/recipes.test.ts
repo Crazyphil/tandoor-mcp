@@ -7,7 +7,7 @@
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import { createRecipeToolHandlers } from './recipes';
 import { TandoorApiClient } from '../api/client';
-import { PaginatedResponse, TandoorRecipeResponse } from '../types';
+import { PaginatedResponse, Recipe } from '../types';
 
 describe('Recipe Tools', () => {
   let mockClient: jest.Mocked<TandoorApiClient>;
@@ -35,16 +35,13 @@ describe('Recipe Tools', () => {
 
   describe('search', () => {
     it('should search recipes by query', async () => {
-      const mockResponse: PaginatedResponse<TandoorRecipeResponse> = {
+      const mockResponse: PaginatedResponse<Recipe> = {
         results: [
-          { id: 1, name: 'Pasta Carbonara', keywords: [{ id: 1, name: 'Italian', label: 'Italian', numchild: 0 }] },
-          { id: 2, name: 'Spaghetti Bolognese', keywords: [{ id: 2, name: 'pasta', label: 'pasta', numchild: 0 }] }
+          { id: 1, name: 'Pasta Carbonara', keywords: [{ id: 1, name: 'Italian' }] },
+          { id: 2, name: 'Spaghetti Bolognese', keywords: [{ id: 2, name: 'pasta' }] }
         ],
         count: 2,
-        page: 1,
-        page_size: 20,
-        has_next: false,
-        has_previous: false
+        page: 1
       };
 
       mockClient.searchRecipes.mockResolvedValue(mockResponse);
@@ -56,13 +53,10 @@ describe('Recipe Tools', () => {
     });
 
     it('should search with filters', async () => {
-      const mockResponse: PaginatedResponse<TandoorRecipeResponse> = {
+      const mockResponse: PaginatedResponse<Recipe> = {
         results: [],
         count: 0,
-        page: 1,
-        page_size: 20,
-        has_next: false,
-        has_previous: false
+        page: 1
       };
 
       mockClient.searchRecipes.mockResolvedValue(mockResponse);
@@ -91,13 +85,10 @@ describe('Recipe Tools', () => {
     });
 
     it('should search with sort_order parameter', async () => {
-      const mockResponse: PaginatedResponse<TandoorRecipeResponse> = {
+      const mockResponse: PaginatedResponse<Recipe> = {
         results: [{ id: 1, name: 'Sorted Recipe', keywords: [] }],
         count: 1,
-        page: 1,
-        page_size: 20,
-        has_next: false,
-        has_previous: false
+        page: 1
       };
 
       mockClient.searchRecipes.mockResolvedValue(mockResponse);
@@ -108,13 +99,10 @@ describe('Recipe Tools', () => {
     });
 
     it('should search with food filters (OR, AND, NOT)', async () => {
-      const mockResponse: PaginatedResponse<TandoorRecipeResponse> = {
+      const mockResponse: PaginatedResponse<Recipe> = {
         results: [],
         count: 0,
-        page: 1,
-        page_size: 20,
-        has_next: false,
-        has_previous: false
+        page: 1
       };
 
       mockClient.searchRecipes.mockResolvedValue(mockResponse);
@@ -133,13 +121,10 @@ describe('Recipe Tools', () => {
     });
 
     it('should search with keyword filters (OR, AND, NOT)', async () => {
-      const mockResponse: PaginatedResponse<TandoorRecipeResponse> = {
+      const mockResponse: PaginatedResponse<Recipe> = {
         results: [],
         count: 0,
-        page: 1,
-        page_size: 20,
-        has_next: false,
-        has_previous: false
+        page: 1
       };
 
       mockClient.searchRecipes.mockResolvedValue(mockResponse);
@@ -158,13 +143,10 @@ describe('Recipe Tools', () => {
     });
 
     it('should search with rating and timescooked filters', async () => {
-      const mockResponse: PaginatedResponse<TandoorRecipeResponse> = {
+      const mockResponse: PaginatedResponse<Recipe> = {
         results: [{ id: 1, name: 'Test Recipe', keywords: [] }],
         count: 1,
-        page: 1,
-        page_size: 20,
-        has_next: false,
-        has_previous: false
+        page: 1
       };
 
       mockClient.searchRecipes.mockResolvedValue(mockResponse);
@@ -181,13 +163,10 @@ describe('Recipe Tools', () => {
     });
 
     it('should search with all_ingredients_stocked flag', async () => {
-      const mockResponse: PaginatedResponse<TandoorRecipeResponse> = {
+      const mockResponse: PaginatedResponse<Recipe> = {
         results: [],
         count: 0,
-        page: 1,
-        page_size: 20,
-        has_next: false,
-        has_previous: false
+        page: 1
       };
 
       mockClient.searchRecipes.mockResolvedValue(mockResponse);
@@ -202,13 +181,10 @@ describe('Recipe Tools', () => {
     });
 
     it('should search with all_ingredients_stocked parameter', async () => {
-      const mockResponse: PaginatedResponse<TandoorRecipeResponse> = {
+      const mockResponse: PaginatedResponse<Recipe> = {
         results: [],
         count: 0,
-        page: 1,
-        page_size: 20,
-        has_next: false,
-        has_previous: false
+        page: 1
       };
 
       mockClient.searchRecipes.mockResolvedValue(mockResponse);
@@ -222,10 +198,7 @@ describe('Recipe Tools', () => {
       mockClient.searchRecipes.mockResolvedValue({
         results: [],
         count: 0,
-        page: 1,
-        page_size: 20,
-        has_next: false,
-        has_previous: false
+        page: 1
       });
 
       const result = await handlers.search({ query: 'xyz123' }, undefined);
@@ -242,12 +215,12 @@ describe('Recipe Tools', () => {
 
   describe('get', () => {
     it('should get recipe by ID', async () => {
-      const mockResponse: TandoorRecipeResponse = {
+      const mockResponse: Recipe = {
         id: 1,
         name: 'Test Recipe',
         description: 'A test recipe',
         servings: 4,
-        keywords: [{ id: 1, name: 'test', label: 'test', numchild: 0 }],
+        keywords: [{ id: 1, name: 'test' }],
         steps: [{
           id: 1,
           name: '',

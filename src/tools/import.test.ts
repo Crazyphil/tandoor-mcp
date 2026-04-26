@@ -25,10 +25,7 @@ describe('RecipeImporter', () => {
           { id: 7, name: 'salt', plural_name: 'salt' }
         ],
         count: 7,
-        page: 1,
-        page_size: 100,
-        has_next: false,
-        has_previous: false
+        page: 1
       }),
       listAllUnits: jest.fn().mockResolvedValue({
         results: [
@@ -36,10 +33,7 @@ describe('RecipeImporter', () => {
           { id: 2, name: 'cup' }
         ],
         count: 2,
-        page: 1,
-        page_size: 100,
-        has_next: false,
-        has_previous: false
+        page: 1
       }),
       listAllKeywords: jest.fn().mockResolvedValue({
         results: [
@@ -48,10 +42,7 @@ describe('RecipeImporter', () => {
           { id: 12, name: 'main course' }
         ],
         count: 3,
-        page: 1,
-        page_size: 100,
-        has_next: false,
-        has_previous: false
+        page: 1
       }),
       // New search methods (used by EntityResolver)
       // Mimics real Tandoor API: search returns foods where name CONTAINS the query (fuzzy search)

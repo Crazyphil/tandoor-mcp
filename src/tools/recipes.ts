@@ -15,8 +15,7 @@ import { createJsonResponse } from '../utils/response';
 /**
  * Handler function type for MCP tools
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ToolHandler<T = any> = (args: T, extra: unknown) => Promise<{ content: { type: 'text'; text: string }[] }>;
+type ToolHandler<T = Record<string, unknown>> = (args: T, extra: unknown) => Promise<{ content: { type: 'text'; text: string }[] }>;
 
 /**
  * Recipe tool handlers interface
@@ -71,7 +70,6 @@ export function createRecipeToolHandlers(client: TandoorApiClient): RecipeToolHa
    * 
    * Maps simplified agent-friendly parameters to Tandoor API parameters.
    */
-  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   const search = async (
     args: {
       query?: string;
@@ -120,13 +118,12 @@ export function createRecipeToolHandlers(client: TandoorApiClient): RecipeToolHa
    */
   const get = async (
     args: { recipe_id: number },
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _extra: unknown
   ): Promise<{ content: { type: 'text'; text: string }[] }> => {
     if (!args.recipe_id || args.recipe_id < 1) {
       throw new McpError(
         ErrorCode.InvalidParams,
-        "Missing or invalid required argument: recipe_id"
+        'Missing or invalid required argument: recipe_id'
       );
     }
 

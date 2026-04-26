@@ -7,7 +7,7 @@
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import { createUnitToolHandlers } from './units';
 import { TandoorApiClient } from '../api/client';
-import { PaginatedResponse, TandoorUnit } from '../types';
+import { PaginatedResponse, Unit } from '../types';
 
 describe('Unit Tools', () => {
   let mockClient: jest.Mocked<TandoorApiClient>;
@@ -35,7 +35,7 @@ describe('Unit Tools', () => {
 
   describe('listAll', () => {
     it('should list all units with pagination', async () => {
-      const mockResponse: PaginatedResponse<TandoorUnit> = {
+      const mockResponse: PaginatedResponse<Unit> = {
         results: [
           { id: 1, name: 'cup', plural_name: 'cups' },
           { id: 2, name: 'tsp', plural_name: 'tsp' },
@@ -44,10 +44,7 @@ describe('Unit Tools', () => {
           { id: 5, name: 'kg', plural_name: 'kg' }
         ],
         count: 5,
-        page: 1,
-        page_size: 20,
-        has_next: false,
-        has_previous: false
+        page: 1
       };
 
       mockClient.listAllUnits.mockResolvedValue(mockResponse);
@@ -56,17 +53,13 @@ describe('Unit Tools', () => {
 
       expect(mockClient.listAllUnits).toHaveBeenCalledWith(1, 20);
       expect(result.content[0].text).toContain('"count": 5');
-      expect(result.content[0].text).toContain('"has_next": false');
     });
 
     it('should use default pagination when not specified', async () => {
       mockClient.listAllUnits.mockResolvedValue({
         results: [],
         count: 0,
-        page: 1,
-        page_size: 20,
-        has_next: false,
-        has_previous: false
+        page: 1
       });
 
       await handlers.listAll({}, undefined);
@@ -84,7 +77,7 @@ describe('Unit Tools', () => {
   describe('search', () => {
     it('should search units by query', async () => {
       // Real API: returns units where name contains query (fuzzy search)
-      const mockResponse: TandoorUnit[] = [
+      const mockResponse: Unit[] = [
         { id: 1, name: 'cup', plural_name: 'cups' },
         { id: 2, name: 'cupful', plural_name: 'cupfuls' },
         { id: 3, name: 'cup/2', plural_name: 'cup/2' },
@@ -131,13 +124,13 @@ describe('Unit Tools', () => {
         { id: 101, name: 'test_pinch_unit', plural_name: 'test_pinch_units' }
       ]);
 
-      const mockResponse: TandoorUnit = { id: 10, name: 'pinch' };
+      const mockResponse: Unit = { id: 10, name: 'pinch' };
       mockClient.createUnit.mockResolvedValue(mockResponse);
 
       const result = await handlers.create({ name: 'pinch' }, undefined);
 
       expect(mockClient.searchUnit).toHaveBeenCalledWith('pinch');
-      expect(mockClient.createUnit).toHaveBeenCalledWith('pinch', undefined, undefined);
+      expect(mockClient.createUnit).toHaveBeenCalledWith('pinch', undefined);
       expect(result.content[0].text).toContain('"id": 10');
       expect(result.content[0].text).toContain('"name": "pinch"');
     });
@@ -148,13 +141,13 @@ describe('Unit Tools', () => {
         { id: 100, name: 'handful of something', plural_name: 'handfuls' }
       ]);
 
-      const mockResponse: TandoorUnit = { id: 11, name: 'handful', plural_name: 'handfuls' };
+      const mockResponse: Unit = { id: 11, name: 'handful', plural_name: 'handfuls' };
       mockClient.createUnit.mockResolvedValue(mockResponse);
 
       const result = await handlers.create({ name: 'handful', plural_name: 'handfuls' }, undefined);
 
       expect(mockClient.searchUnit).toHaveBeenCalledWith('handful');
-      expect(mockClient.createUnit).toHaveBeenCalledWith('handful', 'handfuls', undefined);
+      expect(mockClient.createUnit).toHaveBeenCalledWith('handful', 'handfuls');
       expect(result.content[0].text).toContain('"id": 11');
       expect(result.content[0].text).toContain('"name": "handful"');
       expect(result.content[0].text).toContain('"plural_name": "handfuls"');

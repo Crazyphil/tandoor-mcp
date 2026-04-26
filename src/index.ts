@@ -71,7 +71,6 @@ server.registerTool(
     description: toolsByName.import_recipe_from_json.description,
     inputSchema: toolsByName.import_recipe_from_json.inputSchema
   },
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async (args: unknown, _extra: unknown): Promise<{ content: { type: 'text'; text: string }[] }> => {
     const { recipe } = args as { recipe: SchemaOrgRecipe };
     const result = await importer.importRecipeFromJson(recipe);

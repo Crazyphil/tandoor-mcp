@@ -7,7 +7,7 @@
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 import { createFoodToolHandlers } from './foods';
 import { TandoorApiClient } from '../api/client';
-import { PaginatedResponse, TandoorFood } from '../types';
+import { PaginatedResponse, Food } from '../types';
 
 describe('Food Tools', () => {
   let mockClient: jest.Mocked<TandoorApiClient>;
@@ -35,17 +35,14 @@ describe('Food Tools', () => {
 
   describe('listAll', () => {
     it('should list all foods with pagination', async () => {
-      const mockResponse: PaginatedResponse<TandoorFood> = {
+      const mockResponse: PaginatedResponse<Food> = {
         results: [
-          { id: 1, name: 'onion', plural_name: 'onions', url: 'https://example.com/onion' },
+          { id: 1, name: 'onion', plural_name: 'onions' },
           { id: 2, name: 'tomato', plural_name: 'tomatoes' },
           { id: 3, name: 'garlic', plural_name: 'garlic' }
         ],
         count: 3,
-        page: 1,
-        page_size: 20,
-        has_next: false,
-        has_previous: false
+        page: 1
       };
 
       mockClient.listAllFoods.mockResolvedValue(mockResponse);
@@ -60,10 +57,7 @@ describe('Food Tools', () => {
       mockClient.listAllFoods.mockResolvedValue({
         results: [],
         count: 0,
-        page: 1,
-        page_size: 20,
-        has_next: false,
-        has_previous: false
+        page: 1
       });
 
       await handlers.listAll({}, undefined);
@@ -82,8 +76,8 @@ describe('Food Tools', () => {
     it('should search foods by query', async () => {
       // Real API returns foods where name contains the query (fuzzy search)
       // The code then finds the exact match (case-insensitive) within results
-      const mockResponse: TandoorFood[] = [
-        { id: 1, name: 'onion', plural_name: 'onions', url: 'https://example.com/onion' },
+      const mockResponse: Food[] = [
+        { id: 1, name: 'onion', plural_name: 'onions' },
         { id: 2, name: 'green onion', plural_name: 'green onions' },
         { id: 3, name: 'onion powder', plural_name: 'onion powders' }
       ];
@@ -133,13 +127,13 @@ describe('Food Tools', () => {
         { id: 101, name: 'test_avocado_something' }
       ]);
 
-      const mockResponse: TandoorFood = { id: 10, name: 'avocado', plural_name: 'avocados' };
+      const mockResponse: Food = { id: 10, name: 'avocado', plural_name: 'avocados' };
       mockClient.createFood.mockResolvedValue(mockResponse);
 
       const result = await handlers.create({ name: 'avocado', plural_name: 'avocados' }, undefined);
 
       expect(mockClient.searchFood).toHaveBeenCalledWith('avocado');
-      expect(mockClient.createFood).toHaveBeenCalledWith('avocado', 'avocados', undefined);
+      expect(mockClient.createFood).toHaveBeenCalledWith('avocado', 'avocados');
       expect(result.content[0].text).toContain('"id": 10');
       expect(result.content[0].text).toContain('"name": "avocado"');
     });
@@ -148,28 +142,13 @@ describe('Food Tools', () => {
       // Food doesn't exist (search returns empty)
       mockClient.searchFood.mockResolvedValue([]);
 
-      const mockResponse: TandoorFood = { id: 10, name: 'salt' };
+      const mockResponse: Food = { id: 10, name: 'salt' };
       mockClient.createFood.mockResolvedValue(mockResponse);
 
       await handlers.create({ name: 'salt' }, undefined);
 
       expect(mockClient.searchFood).toHaveBeenCalledWith('salt');
-      expect(mockClient.createFood).toHaveBeenCalledWith('salt', undefined, undefined);
-    });
-
-    it('should create food with url parameter', async () => {
-      // Food doesn't exist (search returns empty)
-      mockClient.searchFood.mockResolvedValue([]);
-
-      const mockResponse: TandoorFood = { id: 11, name: 'quinoa', plural_name: 'quinoa', url: 'https://en.wikipedia.org/wiki/Quinoa' };
-      mockClient.createFood.mockResolvedValue(mockResponse);
-
-      const result = await handlers.create({ name: 'quinoa', plural_name: 'quinoa', url: 'https://en.wikipedia.org/wiki/Quinoa' }, undefined);
-
-      expect(mockClient.searchFood).toHaveBeenCalledWith('quinoa');
-      expect(mockClient.createFood).toHaveBeenCalledWith('quinoa', 'quinoa', 'https://en.wikipedia.org/wiki/Quinoa');
-      expect(result.content[0].text).toContain('"id": 11');
-      expect(result.content[0].text).toContain('"url": "https://en.wikipedia.org/wiki/Quinoa"');
+      expect(mockClient.createFood).toHaveBeenCalledWith('salt', undefined);
     });
 
     it('should throw error for empty name', async () => {
@@ -182,7 +161,7 @@ describe('Food Tools', () => {
       // Real API behavior: search returns multiple results containing 'onion',
       // but exact match exists (case-insensitive)
       mockClient.searchFood.mockResolvedValue([
-        { id: 42, name: 'onion', plural_name: 'onions', url: 'https://example.com/onion' },
+        { id: 42, name: 'onion', plural_name: 'onions' },
         { id: 43, name: 'green onion', plural_name: 'green onions' },
         { id: 44, name: 'onion powder' }
       ]);
@@ -204,7 +183,7 @@ describe('Food Tools', () => {
     it('should be case-insensitive when checking for duplicates', async () => {
       // Real API: search is case-insensitive and returns matches containing the query
       mockClient.searchFood.mockResolvedValue([
-        { id: 99, name: 'Tomato', plural_name: 'tomatoes', url: 'https://example.com/tomato' },
+        { id: 99, name: 'Tomato', plural_name: 'tomatoes' },
         { id: 100, name: 'tomato sauce', plural_name: 'tomato sauces' },
         { id: 101, name: 'cherry tomato', plural_name: 'cherry tomatoes' }
       ]);

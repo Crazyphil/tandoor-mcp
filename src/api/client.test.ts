@@ -33,13 +33,13 @@ describe('TandoorApiClient', () => {
         baseURL: 'http://test.tandoor/api',
         headers: {
           Authorization: 'Bearer test-token',
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+        },
       },
       interceptors: {
         request: { use: jest.fn(), eject: jest.fn() },
-        response: { use: jest.fn(), eject: jest.fn() }
-      }
+        response: { use: jest.fn(), eject: jest.fn() },
+      },
     } as unknown as jest.Mocked<AxiosInstance>;
 
     // Make axios.create return our mock instance
@@ -48,7 +48,7 @@ describe('TandoorApiClient', () => {
     // Create client instance
     client = new TandoorApiClient({
       baseUrl: 'http://test.tandoor',
-      token: 'test-token'
+      token: 'test-token',
     });
   });
 
@@ -58,8 +58,8 @@ describe('TandoorApiClient', () => {
         baseURL: 'http://test.tandoor',
         headers: {
           Authorization: 'Bearer test-token',
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+        },
       });
     });
   });
@@ -70,39 +70,53 @@ describe('TandoorApiClient', () => {
         const mockResponse: AxiosResponse = {
           data: {
             results: [
-              { id: 1, name: 'onion', plural_name: 'onions', url: 'https://example.com/onion' },
-              { id: 2, name: 'onion powder', plural_name: 'onion powders' }
+              {
+                id: 1,
+                name: 'onion',
+                plural_name: 'onions',
+                url: 'https://example.com/onion',
+              },
+              { id: 2, name: 'onion powder', plural_name: 'onion powders' },
             ],
             count: 2,
             page: 1,
             page_size: 20,
             has_next: false,
-            has_previous: false
+            has_previous: false,
           },
           status: 200,
           statusText: 'OK',
           headers: {},
-          config: {} as any
+          config: {} as any,
         };
         mockAxiosInstance.get.mockResolvedValueOnce(mockResponse);
 
         const result = await client.searchFood('onion');
 
-        expect(mockAxiosInstance.get).toHaveBeenCalledWith(
-          '/api/food/',
-          { params: { query: 'onion' } }
-        );
+        expect(mockAxiosInstance.get).toHaveBeenCalledWith('/api/food/', {
+          params: { query: 'onion' },
+        });
         expect(result).toHaveLength(2);
-        expect(result[0]).toMatchObject({ id: 1, name: 'onion', url: 'https://example.com/onion' });
+        expect(result[0]).toMatchObject({
+          id: 1,
+          name: 'onion',
+        });
       });
 
       it('should handle empty results', async () => {
         mockAxiosInstance.get.mockResolvedValueOnce({
-          data: { results: [], count: 0, page: 1, page_size: 20, has_next: false, has_previous: false },
+          data: {
+            results: [],
+            count: 0,
+            page: 1,
+            page_size: 20,
+            has_next: false,
+            has_previous: false,
+          },
           status: 200,
           statusText: 'OK',
           headers: {},
-          config: {} as any
+          config: {} as any,
         });
 
         const result = await client.searchFood('nonexistent');
@@ -113,43 +127,55 @@ describe('TandoorApiClient', () => {
     describe('listAllFoods', () => {
       it('should call correct endpoint with pagination', async () => {
         mockAxiosInstance.get.mockResolvedValueOnce({
-          data: { results: [], count: 0, page: 2, page_size: 10, has_next: false, has_previous: true },
+          data: {
+            results: [],
+            count: 0,
+            page: 2,
+            page_size: 10,
+            has_next: false,
+            has_previous: true,
+          },
           status: 200,
           statusText: 'OK',
           headers: {},
-          config: {} as any
+          config: {} as any,
         });
 
         await client.listAllFoods(2, 10);
 
-        expect(mockAxiosInstance.get).toHaveBeenCalledWith(
-          '/api/food/',
-          { params: { page: 2, page_size: 10 } }
-        );
+        expect(mockAxiosInstance.get).toHaveBeenCalledWith('/api/food/', {
+          params: { page: 2, page_size: 10 },
+        });
       });
     });
 
     describe('createFood', () => {
       it('should create food with all fields', async () => {
         mockAxiosInstance.post.mockResolvedValueOnce({
-          data: { id: 10, name: 'quinoa', plural_name: 'quinoa', url: 'https://en.wikipedia.org/wiki/Quinoa' },
+          data: {
+            id: 10,
+            name: 'quinoa',
+            plural_name: 'quinoa',
+          },
           status: 201,
           statusText: 'Created',
           headers: {},
-          config: {} as any
+          config: {} as any,
         });
 
-        const result = await client.createFood('quinoa', 'quinoa', 'https://en.wikipedia.org/wiki/Quinoa');
-
-        expect(mockAxiosInstance.post).toHaveBeenCalledWith(
-          '/api/food/',
-          { name: 'quinoa', plural_name: 'quinoa', url: 'https://en.wikipedia.org/wiki/Quinoa' }
+        const result = await client.createFood(
+          'quinoa',
+          'quinoa',
         );
+
+        expect(mockAxiosInstance.post).toHaveBeenCalledWith('/api/food/', {
+          name: 'quinoa',
+          plural_name: 'quinoa',
+        });
         expect(result).toMatchObject({
           id: 10,
           name: 'quinoa',
           plural_name: 'quinoa',
-          url: 'https://en.wikipedia.org/wiki/Quinoa'
         });
       });
 
@@ -159,15 +185,14 @@ describe('TandoorApiClient', () => {
           status: 201,
           statusText: 'Created',
           headers: {},
-          config: {} as any
+          config: {} as any,
         });
 
         const result = await client.createFood('salt');
 
-        expect(mockAxiosInstance.post).toHaveBeenCalledWith(
-          '/api/food/',
-          { name: 'salt' }
-        );
+        expect(mockAxiosInstance.post).toHaveBeenCalledWith('/api/food/', {
+          name: 'salt',
+        });
         expect(result).toMatchObject({ id: 11, name: 'salt' });
       });
 
@@ -177,26 +202,28 @@ describe('TandoorApiClient', () => {
           status: 201,
           statusText: 'Created',
           headers: {},
-          config: {} as any
+          config: {} as any,
         });
 
         const result = await client.createFood('uniquefood', null);
 
-        expect(mockAxiosInstance.post).toHaveBeenCalledWith(
-          '/api/food/',
-          { name: 'uniquefood', plural_name: null }
-        );
+        expect(mockAxiosInstance.post).toHaveBeenCalledWith('/api/food/', {
+          name: 'uniquefood',
+          plural_name: null,
+        });
         expect(result.plural_name).toBeNull();
       });
 
       it('should handle 403 Forbidden (insufficient permissions)', async () => {
         const error = new Error('Forbidden') as AxiosError;
         error.response = {
-          data: { detail: 'You do not have permission to perform this action.' },
+          data: {
+            detail: 'You do not have permission to perform this action.',
+          },
           status: 403,
           statusText: 'Forbidden',
           headers: {},
-          config: {} as any
+          config: {} as any,
         };
         mockAxiosInstance.post.mockRejectedValueOnce(error);
 
@@ -210,7 +237,7 @@ describe('TandoorApiClient', () => {
           status: 409,
           statusText: 'Conflict',
           headers: {},
-          config: {} as any
+          config: {} as any,
         };
         mockAxiosInstance.post.mockRejectedValueOnce(error);
 
@@ -223,24 +250,28 @@ describe('TandoorApiClient', () => {
     describe('createUnit', () => {
       it('should create unit with all fields', async () => {
         mockAxiosInstance.post.mockResolvedValueOnce({
-          data: { id: 20, name: 'handful', plural_name: 'handfuls', description: 'A small handful' },
+          data: {
+            id: 20,
+            name: 'handful',
+            plural_name: 'handfuls',
+          },
           status: 201,
           statusText: 'Created',
           headers: {},
-          config: {} as any
+          config: {} as any,
         });
 
-        const result = await client.createUnit('handful', 'handfuls', 'A small handful');
+        const result = await client.createUnit('handful', 'handfuls');
 
-        expect(mockAxiosInstance.post).toHaveBeenCalledWith(
-          '/api/unit/',
-          { name: 'handful', plural_name: 'handfuls', description: 'A small handful' }
-        );
+        expect(mockAxiosInstance.post).toHaveBeenCalledWith('/api/unit/', {
+          name: 'handful',
+          plural_name: 'handfuls',
+        });
+
         expect(result).toMatchObject({
           id: 20,
           name: 'handful',
           plural_name: 'handfuls',
-          description: 'A small handful'
         });
       });
 
@@ -250,15 +281,14 @@ describe('TandoorApiClient', () => {
           status: 201,
           statusText: 'Created',
           headers: {},
-          config: {} as any
+          config: {} as any,
         });
 
         const result = await client.createUnit('cup');
 
-        expect(mockAxiosInstance.post).toHaveBeenCalledWith(
-          '/api/unit/',
-          { name: 'cup' }
-        );
+        expect(mockAxiosInstance.post).toHaveBeenCalledWith('/api/unit/', {
+          name: 'cup',
+        });
         expect(result.name).toBe('cup');
       });
     });
@@ -269,18 +299,18 @@ describe('TandoorApiClient', () => {
           data: {
             results: [
               { id: 1, name: 'cup', plural_name: 'cups' },
-              { id: 2, name: 'tsp', plural_name: 'tsp' }
+              { id: 2, name: 'tsp', plural_name: 'tsp' },
             ],
             count: 2,
             page: 1,
             page_size: 20,
             has_next: false,
-            has_previous: false
+            has_previous: false,
           },
           status: 200,
           statusText: 'OK',
           headers: {},
-          config: {} as any
+          config: {} as any,
         });
 
         const result = await client.searchUnit('cup');
@@ -300,25 +330,22 @@ describe('TandoorApiClient', () => {
             name: 'vegetarian',
             label: 'vegetarian',
             numchild: 0,
-            description: 'Vegetarian recipes'
+            description: 'Vegetarian recipes',
           },
           status: 201,
           statusText: 'Created',
           headers: {},
-          config: {} as any
+          config: {} as any,
         });
 
         const result = await client.createKeyword('vegetarian');
 
-        expect(mockAxiosInstance.post).toHaveBeenCalledWith(
-          '/api/keyword/',
-          { name: 'vegetarian' }
-        );
+        expect(mockAxiosInstance.post).toHaveBeenCalledWith('/api/keyword/', {
+          name: 'vegetarian',
+        });
         expect(result).toMatchObject({
           id: 30,
           name: 'vegetarian',
-          label: 'vegetarian',
-          numchild: 0
         });
       });
     });
@@ -329,25 +356,24 @@ describe('TandoorApiClient', () => {
           data: {
             results: [
               { id: 1, name: 'Italian', label: 'Italian', numchild: 0 },
-              { id: 2, name: 'vegetarian', label: 'vegetarian', numchild: 0 }
+              { id: 2, name: 'vegetarian', label: 'vegetarian', numchild: 0 },
             ],
             count: 2,
             page: 1,
             page_size: 20,
             has_next: false,
-            has_previous: false
+            has_previous: false,
           },
           status: 200,
           statusText: 'OK',
           headers: {},
-          config: {} as any
+          config: {} as any,
         });
 
         const result = await client.listAllKeywords();
 
         expect(result.results).toHaveLength(2);
-        expect(result.results[0].label).toBe('Italian');
-        expect(result.results[0].numchild).toBe(0);
+        expect(result.results[0].name).toBe('Italian');
       });
     });
   });
@@ -362,29 +388,35 @@ describe('TandoorApiClient', () => {
             page: 1,
             page_size: 20,
             has_next: false,
-            has_previous: false
+            has_previous: false,
           },
           status: 200,
           statusText: 'OK',
           headers: {},
-          config: {} as any
+          config: {} as any,
         });
 
         await client.searchRecipes({ query: 'pasta' });
 
-        expect(mockAxiosInstance.get).toHaveBeenCalledWith(
-          '/api/recipe/',
-          { params: expect.objectContaining({ query: 'pasta' }) }
-        );
+        expect(mockAxiosInstance.get).toHaveBeenCalledWith('/api/recipe/', {
+          params: expect.objectContaining({ query: 'pasta' }),
+        });
       });
 
       it('should pass all filter parameters correctly', async () => {
         mockAxiosInstance.get.mockResolvedValueOnce({
-          data: { results: [], count: 0, page: 1, page_size: 20, has_next: false, has_previous: false },
+          data: {
+            results: [],
+            count: 0,
+            page: 1,
+            page_size: 20,
+            has_next: false,
+            has_previous: false,
+          },
           status: 200,
           statusText: 'OK',
           headers: {},
-          config: {} as any
+          config: {} as any,
         });
 
         await client.searchRecipes({
@@ -400,7 +432,7 @@ describe('TandoorApiClient', () => {
           makenow: true,
           sort_order: '-rating',
           page: 2,
-          page_size: 10
+          page_size: 10,
         });
 
         const callParams = mockAxiosInstance.get.mock.calls[0][1];
@@ -417,17 +449,24 @@ describe('TandoorApiClient', () => {
           makenow: true,
           sort_order: '-rating',
           page: 2,
-          page_size: 10
+          page_size: 10,
         });
       });
 
       it('should handle pagination defaults', async () => {
         mockAxiosInstance.get.mockResolvedValueOnce({
-          data: { results: [], count: 0, page: 1, page_size: 20, has_next: false, has_previous: false },
+          data: {
+            results: [],
+            count: 0,
+            page: 1,
+            page_size: 20,
+            has_next: false,
+            has_previous: false,
+          },
           status: 200,
           statusText: 'OK',
           headers: {},
-          config: {} as any
+          config: {} as any,
         });
 
         await client.searchRecipes({});
@@ -447,48 +486,61 @@ describe('TandoorApiClient', () => {
             {
               instruction: 'Test instruction',
               order: 0,
-              ingredients: [{
-                amount: 100,
-                unit: 1,
-                food: 2,
-                order: 0
-              }]
-            }
+              ingredients: [
+                {
+                  amount: 100,
+                  unit: 1,
+                  food: 2,
+                  order: 0,
+                },
+              ],
+            },
           ],
-          ingredients: []
+          ingredients: [],
         };
 
         mockAxiosInstance.post.mockResolvedValueOnce({
           data: {
             id: 100,
             name: 'Test Recipe',
-            steps: [{
-              id: 1,
-              name: '',
-              instruction: 'Test instruction',
-              order: 0,
-              ingredients: [{
+            steps: [
+              {
                 id: 1,
-                amount: 100,
-                unit: { id: 1, name: 'g', plural_name: 'g', description: null },
-                food: { id: 2, name: 'flour', plural_name: null, url: undefined },
-                note: null,
-                order: 0
-              }]
-            }]
+                name: '',
+                instruction: 'Test instruction',
+                order: 0,
+                ingredients: [
+                  {
+                    id: 1,
+                    amount: 100,
+                    unit: {
+                      id: 1,
+                      name: 'g',
+                      plural_name: 'g',
+                      description: null,
+                    },
+                    food: {
+                      id: 2,
+                      name: 'flour',
+                      plural_name: null,
+                      url: undefined,
+                    },
+                    note: null,
+                    order: 0,
+                  },
+                ],
+              },
+            ],
           },
           status: 201,
           statusText: 'Created',
           headers: {},
-          config: {} as any
+          config: {} as any,
         });
 
         const result = await client.createRecipe(recipePayload);
 
-        expect(mockAxiosInstance.post).toHaveBeenCalledWith(
-          '/api/recipe/',
-          recipePayload
-        );
+        expect(mockAxiosInstance.post).toHaveBeenCalledWith('/api/recipe/', recipePayload);
         expect(result.id).toBe(100);
         expect(result.name).toBe('Test Recipe');
       });
@@ -500,22 +552,20 @@ describe('TandoorApiClient', () => {
           data: {
             id: 50,
             name: 'Pasta Carbonara',
-            keywords: [
-              { id: 1, name: 'Italian', label: 'Italian', numchild: 0 }
-            ],
-            steps: []
+            keywords: [{ id: 1, name: 'Italian', label: 'Italian', numchild: 0 }],
+            steps: [],
           },
           status: 200,
           statusText: 'OK',
           headers: {},
-          config: {} as any
+          config: {} as any,
         });
 
         const result = await client.getRecipe(50);
 
         expect(mockAxiosInstance.get).toHaveBeenCalledWith('/api/recipe/50/');
         expect(result.id).toBe(50);
-        expect(result.keywords?.[0].label).toBe('Italian');
+        expect(result.keywords?.[0].name).toBe('Italian');
       });
 
       it('should handle 404 Not Found', async () => {
@@ -525,10 +575,9 @@ describe('TandoorApiClient', () => {
           status: 404,
           statusText: 'Not Found',
           headers: {},
-          config: {} as any
+          config: {} as any,
         };
         mockAxiosInstance.get.mockRejectedValueOnce(error);
-
         await expect(client.getRecipe(999)).rejects.toThrow();
       });
     });
@@ -546,7 +595,7 @@ describe('TandoorApiClient', () => {
           status: 200,
           statusText: 'OK',
           headers: {},
-          config: {} as any
+          config: {} as any,
         });
 
         // Mock Blob constructor
@@ -556,7 +605,7 @@ describe('TandoorApiClient', () => {
 
         // Mock FormData
         global.FormData = jest.fn().mockImplementation(() => ({
-          append: jest.fn()
+          append: jest.fn(),
         })) as unknown as typeof FormData;
       });
 
@@ -566,7 +615,7 @@ describe('TandoorApiClient', () => {
           status: 200,
           statusText: 'OK',
           headers: {},
-          config: {} as any
+          config: {} as any,
         });
 
         await client.uploadRecipeImage(100, 'http://example.com/image.jpg');
@@ -587,15 +636,15 @@ describe('TandoorApiClient', () => {
         status: 401,
         statusText: 'Unauthorized',
         headers: {},
-        config: {} as any
+        config: {} as any,
       };
       mockAxiosInstance.get.mockRejectedValueOnce(error);
 
       await expect(client.listAllFoods()).rejects.toMatchObject({
         response: {
           status: 401,
-          data: { detail: 'Invalid token' }
-        }
+          data: { detail: 'Invalid token' },
+        },
       });
     });
 

@@ -27,83 +27,100 @@ export interface ToolDefinition {
   title: string;
   description: string;
   inputSchema: z.ZodTypeAny;
+  annotations?: {
+    readOnlyHint?: boolean;
+    destructiveHint?: boolean;
+    idempotentHint?: boolean;
+    openWorldHint?: boolean;
+  };
 }
 
 /** All available tools in the Tandoor MCP server */
 export const tools: ToolDefinition[] = [
   // Tools are also available via toolsByName for direct name-based access
-
   {
     name: 'import_recipe_from_json',
     title: 'Import recipe from JSON',
     description: 'Import a recipe from schema.org JSON format into Tandoor. All referenced foods, units, and keywords must already exist. Use search/create tools for these before importing.',
-    inputSchema: importRecipeInputSchema
+    inputSchema: importRecipeInputSchema,
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true }
   },
   {
     name: 'list_all_foods',
     title: 'List all foods',
     description: 'Get a paginated list of all foods in Tandoor. Useful for building a local reference map.',
-    inputSchema: listAllFoodsInputSchema
+    inputSchema: listAllFoodsInputSchema,
+    annotations: { readOnlyHint: true }
   },
   {
     name: 'search_food',
     title: 'Search foods',
     description: 'Search for foods in Tandoor by name. Returns matching foods with IDs, names, plural forms, and substitutes.',
-    inputSchema: searchFoodInputSchema
+    inputSchema: searchFoodInputSchema,
+    annotations: { readOnlyHint: true }
   },
   {
     name: 'create_food',
     title: 'Create food',
     description: 'Create a new food in Tandoor. Check for existence first - returns an error if the food already exists.',
-    inputSchema: createFoodInputSchema
+    inputSchema: createFoodInputSchema,
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true }
   },
   {
     name: 'list_all_units',
     title: 'List all units',
     description: 'Get a paginated list of all measurement units in Tandoor. Useful for building a local reference map.',
-    inputSchema: listAllUnitsInputSchema
+    inputSchema: listAllUnitsInputSchema,
+    annotations: { readOnlyHint: true }
   },
   {
     name: 'search_unit',
     title: 'Search units',
     description: 'Search for measurement units in Tandoor by name. Returns matching units with IDs and names.',
-    inputSchema: searchUnitInputSchema
+    inputSchema: searchUnitInputSchema,
+    annotations: { readOnlyHint: true }
   },
   {
     name: 'create_unit',
     title: 'Create unit',
     description: 'Create a new measurement unit in Tandoor. Check for existence first - returns an error if the unit already exists.',
-    inputSchema: createUnitInputSchema
+    inputSchema: createUnitInputSchema,
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true }
   },
   {
     name: 'list_all_keywords',
     title: 'List all keywords',
     description: 'Get a paginated list of all keywords in Tandoor. Useful for building a local reference map.',
-    inputSchema: listAllKeywordsInputSchema
+    inputSchema: listAllKeywordsInputSchema,
+    annotations: { readOnlyHint: true }
   },
   {
     name: 'search_keyword',
     title: 'Search keywords',
     description: 'Search for keywords in Tandoor by name. Returns matching keywords with IDs and names.',
-    inputSchema: searchKeywordInputSchema
+    inputSchema: searchKeywordInputSchema,
+    annotations: { readOnlyHint: true }
   },
   {
     name: 'create_keyword',
     title: 'Create keyword',
     description: 'Create a new keyword in Tandoor. Check for existence first - returns an error if the keyword already exists.',
-    inputSchema: createKeywordInputSchema
+    inputSchema: createKeywordInputSchema,
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true }
   },
   {
     name: 'search_recipes',
     title: 'Search recipes',
     description: 'Search for recipes in Tandoor with optional filters. Requires food/keyword IDs (not names) - resolve names to IDs first using search tools.',
-    inputSchema: searchRecipesInputSchema
+    inputSchema: searchRecipesInputSchema,
+    annotations: { readOnlyHint: true }
   },
   {
     name: 'get_recipe',
     title: 'Get recipe',
     description: 'Get full recipe details by ID. Returns the recipe in schema.org/Recipe format.',
-    inputSchema: getRecipeInputSchema
+    inputSchema: getRecipeInputSchema,
+    annotations: { readOnlyHint: true }
   }
 ];
 

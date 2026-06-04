@@ -67,31 +67,41 @@ describe('MCP Server Integration', () => {
         name: 'import_recipe_from_json',
         title: 'Import recipe from JSON',
         description: expect.stringContaining('schema.org'),
-        inputSchema: expect.any(Object)
+        inputSchema: expect.any(Object),
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: true
+        }
       });
     });
 
     it('should have correct structure for search_food tool', async () => {
       const response = await listToolsHandler();
       const tool = response.tools.find(t => t.name === 'search_food');
-
       expect(tool).toEqual({
         name: 'search_food',
         title: 'Search foods',
         description: expect.stringContaining('Search for foods'),
-        inputSchema: expect.any(Object)
+        inputSchema: expect.any(Object),
+        annotations: { readOnlyHint: true }
       });
     });
 
     it('should have correct structure for create_keyword tool', async () => {
       const response = await listToolsHandler();
       const tool = response.tools.find(t => t.name === 'create_keyword');
-
       expect(tool).toEqual({
         name: 'create_keyword',
         title: 'Create keyword',
         description: expect.stringContaining('already exists'),
-        inputSchema: expect.any(Object)
+        inputSchema: expect.any(Object),
+        annotations: {
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: true
+        }
       });
     });
   });

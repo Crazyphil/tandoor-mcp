@@ -69,7 +69,8 @@ server.registerTool(
   {
     title: toolsByName.import_recipe_from_json.title,
     description: toolsByName.import_recipe_from_json.description,
-    inputSchema: toolsByName.import_recipe_from_json.inputSchema
+    inputSchema: toolsByName.import_recipe_from_json.inputSchema,
+    annotations: toolsByName.import_recipe_from_json.annotations,
   },
   async (args: unknown, _extra: unknown): Promise<{ content: { type: 'text'; text: string }[] }> => {
     const { recipe } = args as { recipe: SchemaOrgRecipe };
@@ -86,7 +87,8 @@ server.registerTool(
   {
     title: toolsByName.list_all_foods.title,
     description: toolsByName.list_all_foods.description,
-    inputSchema: toolsByName.list_all_foods.inputSchema
+    inputSchema: toolsByName.list_all_foods.inputSchema,
+    annotations: toolsByName.list_all_foods.annotations,
   },
   (args: unknown, extra: unknown) => foodHandlers.listAll(args as { page?: number; page_size?: number }, extra)
 );
@@ -95,7 +97,8 @@ server.registerTool(
   {
     title: toolsByName.search_food.title,
     description: toolsByName.search_food.description,
-    inputSchema: toolsByName.search_food.inputSchema
+    inputSchema: toolsByName.search_food.inputSchema,
+    annotations: toolsByName.search_food.annotations,
   },
   (args: unknown, extra: unknown) => foodHandlers.search(args as { query: string }, extra)
 );
@@ -104,7 +107,8 @@ server.registerTool(
   {
     title: toolsByName.create_food.title,
     description: toolsByName.create_food.description,
-    inputSchema: toolsByName.create_food.inputSchema
+    inputSchema: toolsByName.create_food.inputSchema,
+    annotations: toolsByName.create_food.annotations,
   },
   (args: unknown, extra: unknown) => foodHandlers.create(args as { name: string; plural_name?: string }, extra)
 );
@@ -115,7 +119,8 @@ server.registerTool(
   {
     title: toolsByName.list_all_units.title,
     description: toolsByName.list_all_units.description,
-    inputSchema: toolsByName.list_all_units.inputSchema
+    inputSchema: toolsByName.list_all_units.inputSchema,
+    annotations: toolsByName.list_all_units.annotations,
   },
   (args: unknown, extra: unknown) => unitHandlers.listAll(args as { page?: number; page_size?: number }, extra)
 );
@@ -124,7 +129,8 @@ server.registerTool(
   {
     title: toolsByName.search_unit.title,
     description: toolsByName.search_unit.description,
-    inputSchema: toolsByName.search_unit.inputSchema
+    inputSchema: toolsByName.search_unit.inputSchema,
+    annotations: toolsByName.search_unit.annotations,
   },
   (args: unknown, extra: unknown) => unitHandlers.search(args as { query: string }, extra)
 );
@@ -133,7 +139,8 @@ server.registerTool(
   {
     title: toolsByName.create_unit.title,
     description: toolsByName.create_unit.description,
-    inputSchema: toolsByName.create_unit.inputSchema
+    inputSchema: toolsByName.create_unit.inputSchema,
+    annotations: toolsByName.create_unit.annotations,
   },
   (args: unknown, extra: unknown) => unitHandlers.create(args as { name: string }, extra)
 );
@@ -144,7 +151,8 @@ server.registerTool(
   {
     title: toolsByName.list_all_keywords.title,
     description: toolsByName.list_all_keywords.description,
-    inputSchema: toolsByName.list_all_keywords.inputSchema
+    inputSchema: toolsByName.list_all_keywords.inputSchema,
+    annotations: toolsByName.list_all_keywords.annotations,
   },
   (args: unknown, extra: unknown) => keywordHandlers.listAll(args as { page?: number; page_size?: number }, extra)
 );
@@ -153,7 +161,8 @@ server.registerTool(
   {
     title: toolsByName.search_keyword.title,
     description: toolsByName.search_keyword.description,
-    inputSchema: toolsByName.search_keyword.inputSchema
+    inputSchema: toolsByName.search_keyword.inputSchema,
+    annotations: toolsByName.search_keyword.annotations,
   },
   (args: unknown, extra: unknown) => keywordHandlers.search(args as { query: string }, extra)
 );
@@ -162,7 +171,8 @@ server.registerTool(
   {
     title: toolsByName.create_keyword.title,
     description: toolsByName.create_keyword.description,
-    inputSchema: toolsByName.create_keyword.inputSchema
+    inputSchema: toolsByName.create_keyword.inputSchema,
+    annotations: toolsByName.create_keyword.annotations,
   },
   (args: unknown, extra: unknown) => keywordHandlers.create(args as { name: string }, extra)
 );
@@ -173,7 +183,8 @@ server.registerTool(
   {
     title: toolsByName.search_recipes.title,
     description: toolsByName.search_recipes.description,
-    inputSchema: toolsByName.search_recipes.inputSchema
+    inputSchema: toolsByName.search_recipes.inputSchema,
+    annotations: toolsByName.search_recipes.annotations,
   },
   (args: unknown, extra: unknown) => recipeHandlers.search(args as { query?: string; foods?: number[]; keywords?: number[]; page?: number; page_size?: number; }, extra)
 );
@@ -182,7 +193,8 @@ server.registerTool(
   {
     title: toolsByName.get_recipe.title,
     description: toolsByName.get_recipe.description,
-    inputSchema: toolsByName.get_recipe.inputSchema
+    inputSchema: toolsByName.get_recipe.inputSchema,
+    annotations: toolsByName.get_recipe.annotations,
   },
   (args: unknown, extra: unknown) => recipeHandlers.get(args as { recipe_id: number }, extra)
 );

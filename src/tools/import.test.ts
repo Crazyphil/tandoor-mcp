@@ -407,4 +407,138 @@ describe('RecipeImporter', () => {
       expect(Array.isArray(capturedPayload.ingredients)).toBe(true);
     });
   });
+
+  describe('food fallback lookups (Finding 1)', () => {
+    it('should succeed when full multi-word food misses but shorter fallback resolves', async () => {
+      // "green onion" is in the mock DB. If we search for "green onion chopped",
+      // the full name won't match, but the fallback "green onion" should.
+      // Previously this would falsely record "green onion chopped" as missing.
+      const recipe: SchemaOrgRecipe = {
+        name: 'Green Onion Dish',
+        recipeIngredient: ['2 green onion chopped'],
+        recipeInstructions: ['Cook']
+      };
+      const result = await importer.importRecipeFromJson(recipe);
+      expect(result.import_status).toBe('success');
+      // No missing foods - the fallback resolved it
+      expect(result.mapping_notes.error_code).toBeUndefined();
+    });
+
+    it('should report missing_entities when all food candidates fail', async () => {
+      const recipe: SchemaOrgRecipe = {
+        name: 'Unknown Food Recipe',
+        recipeIngredient: ['1 unknownfood123'],
+        recipeInstructions: ['Cook']
+      };
+      const result = await importer.importRecipeFromJson(recipe);
+      expect(result.import_status).toBe('error');
+      expect(result.mapping_notes.error_code).toBe('missing_entities');
+      expect(result.mapping_notes.error_details.missing.foods).toContain('unknownfood123');
+      // Warnings should NOT contain the missing food message - it's an error, not a warning
+      const foodWarning = result.mapping_notes.warnings.find((w: string) => w.includes('unknownfood123'));
+      expect(foodWarning).toBeUndefined();
+    });
+
+    it('should succeed when per-step ingredient food misses full name but fallback resolves', async () => {
+      // Test per-step recipeIngredient with a multi-word food that needs fallback
+      const recipe: SchemaOrgRecipe = {
+        name: 'Step Ingredient Dish',
+        recipeIngredient: ['1 onion'],
+        recipeInstructions: [
+          {
+            '@type': 'HowToStep',
+            text: 'Cook the onion',
+            recipeIngredient: ['2 green onion chopped']
+          }
+        ] as any
+      };
+      const result = await importer.importRecipeFromJson(recipe);
+      expect(result.import_status).toBe('success');
+      expect(result.mapping_notes.error_code).toBeUndefined();
+    });
+  });
+
+  describe('optional metadata keyword handling (Finding 2)', () => {
+    it('should succeed with warning when recipeCategory keyword does not exist', async () => {
+      const recipe: SchemaOrgRecipe = {
+        name: 'Onion Soup',
+        recipeIngredient: ['2 onion'],
+        recipeInstructions: ['Cook'],
+        recipeCategory: 'nonexistent category'
+      };
+      const result = await importer.importRecipeFromJson(recipe);
+      // Should succeed - recipeCategory is optional metadata
+      expect(result.import_status).toBe('success');
+      // Should include a warning about the missing category
+      const categoryWarning = result.mapping_notes.warnings.find((w: string) =>
+        w.includes('recipeCategory') && w.includes('nonexistent category')
+      );
+      expect(categoryWarning).toBeDefined();
+    });
+
+    it('should succeed with warning when recipeCuisine keyword does not exist', async () => {
+      const recipe: SchemaOrgRecipe = {
+        name: 'Onion Soup',
+        recipeIngredient: ['2 onion'],
+        recipeInstructions: ['Cook'],
+        recipeCuisine: 'martian'
+      };
+      const result = await importer.importRecipeFromJson(recipe);
+      // Should succeed - recipeCuisine is optional metadata
+      expect(result.import_status).toBe('success');
+      // Should include a warning about the missing cuisine
+      const cuisineWarning = result.mapping_notes.warnings.find((w: string) =>
+        w.includes('recipeCuisine') && w.includes('martian')
+      );
+      expect(cuisineWarning).toBeDefined();
+    });
+
+    it('should succeed with warning when suitableForDiet keyword does not exist', async () => {
+      const recipe: SchemaOrgRecipe = {
+        name: 'Onion Soup',
+        recipeIngredient: ['2 onion'],
+        recipeInstructions: ['Cook'],
+        suitableForDiet: 'https://schema.org/MartianDiet'
+      };
+      const result = await importer.importRecipeFromJson(recipe);
+      // Should succeed - suitableForDiet is optional metadata
+      expect(result.import_status).toBe('success');
+      // Should include a warning about the missing diet
+      const dietWarning = result.mapping_notes.warnings.find((w: string) =>
+        w.includes('suitableForDiet')
+      );
+      expect(dietWarning).toBeDefined();
+    });
+
+    it('should succeed when recipeCategory keyword exists', async () => {
+      const recipe: SchemaOrgRecipe = {
+        name: 'Onion Soup',
+        recipeIngredient: ['2 onion'],
+        recipeInstructions: ['Cook'],
+        recipeCategory: 'dinner'
+      };
+      const result = await importer.importRecipeFromJson(recipe);
+      expect(result.import_status).toBe('success');
+      // No warning about recipeCategory since it was found
+      const categoryWarning = result.mapping_notes.warnings.find((w: string) =>
+        w.includes('recipeCategory')
+      );
+      expect(categoryWarning).toBeUndefined();
+    });
+
+    it('should still fail when explicit keywords are missing', async () => {
+      // The 'keywords' field (explicit recipe keywords) should still cause
+      // a missing_entities error if not found, unlike optional metadata
+      const recipe: SchemaOrgRecipe = {
+        name: 'Onion Soup',
+        recipeIngredient: ['2 onion'],
+        recipeInstructions: ['Cook'],
+        keywords: ['nonexistent_keyword_xyz']
+      };
+      const result = await importer.importRecipeFromJson(recipe);
+      expect(result.import_status).toBe('error');
+      expect(result.mapping_notes.error_code).toBe('missing_entities');
+      expect(result.mapping_notes.error_details.missing.keywords).toContain('nonexistent_keyword_xyz');
+    });
+  });
 });

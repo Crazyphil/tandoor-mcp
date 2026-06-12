@@ -54,14 +54,13 @@ export class RecipeImporter {
       // Step 2: Create an entity resolver that uses search instead of bulk fetching
       // This avoids timeouts when Tandoor has thousands of entities (e.g., 42k+ foods)
       const entityResolver = new EntityResolver(this.client);
-      const warnings: string[] = [];
 
-      // Step 3: Convert to Tandoor format using async entity resolution
-      const { payload, field_transformations, missingEntities } = await convertSchemaOrgToTandoorAsync(
-        recipe,
-        entityResolver
-      );
-
+    // Step 3: Convert to Tandoor format using async entity resolution
+    const { payload, field_transformations, missingEntities, warnings: converterWarnings } = await convertSchemaOrgToTandoorAsync(
+      recipe,
+      entityResolver
+    );
+    const warnings: string[] = [...converterWarnings];
       // Step 4: Validation - check for missing entities from conversion
       if (missingEntities.foods.length > 0 || missingEntities.units.length > 0 || missingEntities.keywords.length > 0) {
         return {

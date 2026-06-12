@@ -646,6 +646,21 @@ interface AsyncEntityLookup {
    * Returns undefined if not found without adding to missing entities.
    */
   findUnit: (name: string) => Promise<Unit | undefined>;
+  /**
+   * Find a food but don't mark it as missing if not found.
+   * Used for speculative/fallback food lookups where a miss should not
+   * block the import if a shorter prefix fallback succeeds.
+   * Returns undefined if not found without adding to missing entities.
+   */
+  findFood: (name: string) => Promise<Food | undefined>;
+  /**
+   * Find a keyword but don't mark it as missing if not found.
+   * Used for optional metadata fields (recipeCategory, recipeCuisine,
+   * suitableForDiet) where a missing keyword should produce a warning
+   * rather than block the import.
+   * Returns undefined if not found without adding to missing entities.
+   */
+  findKeyword: (name: string) => Promise<Keyword | undefined>;
 }
 
 /**
@@ -680,7 +695,14 @@ export class EntityResolver implements AsyncEntityLookup {
 
     // Check cache first
     if (this.cache.foods.has(normalizedName)) {
-      return this.cache.foods.get(normalizedName);
+      const cached = this.cache.foods.get(normalizedName);
+      if (!cached) {
+        // Cached miss - still need to record as missing entity
+        if (!this.missingEntities.foods.includes(name)) {
+          this.missingEntities.foods.push(name);
+        }
+      }
+      return cached;
     }
 
     try {
@@ -720,7 +742,14 @@ export class EntityResolver implements AsyncEntityLookup {
     const normalizedName = name.toLowerCase().trim();
     
     if (this.cache.units.has(normalizedName)) {
-      return this.cache.units.get(normalizedName);
+      const cached = this.cache.units.get(normalizedName);
+      if (!cached) {
+        // Cached miss - still need to record as missing entity
+        if (!this.missingEntities.units.includes(name)) {
+          this.missingEntities.units.push(name);
+        }
+      }
+      return cached;
     }
 
     try {
@@ -754,7 +783,14 @@ export class EntityResolver implements AsyncEntityLookup {
     const normalizedName = name.toLowerCase().trim();
 
     if (this.cache.keywords.has(normalizedName)) {
-      return this.cache.keywords.get(normalizedName);
+      const cached = this.cache.keywords.get(normalizedName);
+      if (!cached) {
+        // Cached miss - still need to record as missing entity
+        if (!this.missingEntities.keywords.includes(name)) {
+          this.missingEntities.keywords.push(name);
+        }
+      }
+      return cached;
     }
 
     try {
@@ -788,6 +824,72 @@ export class EntityResolver implements AsyncEntityLookup {
       units: [...this.missingEntities.units],
       keywords: [...this.missingEntities.keywords]
     };
+  }
+
+  /**
+   * Search for a food without tracking it as "missing" if not found.
+   * Used for speculative/fallback food lookups where a miss should not
+   * block the import if a shorter prefix fallback succeeds.
+   * This is distinct from getFood() which is used for final food lookups
+   * and records misses as missing entities.
+   */
+  async findFood(name: string): Promise<Food | undefined> {
+    const normalizedName = name.toLowerCase().trim();
+
+    // Check cache first
+    if (this.cache.foods.has(normalizedName)) {
+      return this.cache.foods.get(normalizedName);
+    }
+
+    try {
+      const results = await this.client.searchFood(normalizedName);
+      const match = results.find(f =>
+        f.name.toLowerCase() === normalizedName ||
+        (f.plural_name && f.plural_name.toLowerCase() === normalizedName)
+      );
+      if (match) {
+        this.cache.foods.set(normalizedName, match);
+        return match;
+      }
+      // Not found - cache the miss but don't track as missing (this is a speculative lookup)
+      this.cache.foods.set(normalizedName, undefined);
+      return undefined;
+    } catch {
+      // API error - just return undefined
+      return undefined;
+    }
+  }
+
+  /**
+   * Search for a keyword without tracking it as "missing" if not found.
+   * Used for optional metadata fields (recipeCategory, recipeCuisine,
+   * suitableForDiet) where a missing keyword should produce a warning
+   * rather than block the import.
+   * This is distinct from getKeyword() which is used for explicit keyword
+   * lookups and records misses as missing entities.
+   */
+  async findKeyword(name: string): Promise<Keyword | undefined> {
+    const normalizedName = name.toLowerCase().trim();
+
+    // Check cache first
+    if (this.cache.keywords.has(normalizedName)) {
+      return this.cache.keywords.get(normalizedName);
+    }
+
+    try {
+      const results = await this.client.searchKeyword(normalizedName);
+      const match = results.find(k => k.name.toLowerCase() === normalizedName);
+      if (match) {
+        this.cache.keywords.set(normalizedName, match);
+        return match;
+      }
+      // Not found - cache the miss but don't track as missing (this is a speculative lookup)
+      this.cache.keywords.set(normalizedName, undefined);
+      return undefined;
+    } catch {
+      // API error - just return undefined
+      return undefined;
+    }
   }
 
   /**
@@ -834,8 +936,9 @@ export class EntityResolver implements AsyncEntityLookup {
 export async function convertSchemaOrgToTandoorAsync(
   recipe: SchemaOrgRecipe,
   entityResolver: AsyncEntityLookup
-): Promise<{ payload: TandoorRecipePayload; field_transformations: string[]; missingEntities: AsyncMissingEntities }> {
+): Promise<{ payload: TandoorRecipePayload; field_transformations: string[]; missingEntities: AsyncMissingEntities; warnings: string[] }> {
   const field_transformations: string[] = [];
+  const warnings: string[] = [];
 
   const payload: TandoorRecipePayload = {
     name: recipe.name,
@@ -976,26 +1079,30 @@ export async function convertSchemaOrgToTandoorAsync(
     // Look up food ID using async resolver
     let foodId: number | undefined;
     
-    // Try full name first
-    let foodResult = await entityResolver.getFood(foodName);
-    
-    // If not found and has multiple words, try progressively shorter prefixes
-    if (!foodResult && foodName.includes(' ')) {
-      const foodWords = foodName.split(/\s+/);
-      for (let i = foodWords.length; i > 0; i--) {
-        const testName = foodWords.slice(0, i).join(' ');
-        foodResult = await entityResolver.getFood(testName);
-        if (foodResult) {
-          break;
+      // Use findFood() for speculative lookups (including fallback prefixes)
+      // so that misses don't get recorded as missing entities.
+      // Only call getFood() for the final resolved food name to record
+      // a genuine miss if all candidates fail.
+      let foodResult = await entityResolver.findFood(foodName);
+
+      // If not found and has multiple words, try progressively shorter prefixes
+      if (!foodResult && foodName.includes(' ')) {
+        const foodWords = foodName.split(/\s+/);
+        for (let i = foodWords.length - 1; i > 0; i--) {
+          const testName = foodWords.slice(0, i).join(' ');
+          foodResult = await entityResolver.findFood(testName);
+          if (foodResult) {
+            break;
+          }
         }
       }
-    }
 
-    if (foodResult) {
-      foodId = foodResult.id;
-    }
-
-    if (foodId === undefined) {
+      if (foodResult) {
+        foodId = foodResult.id;
+      } else {
+        // All candidates failed - record the original food name as genuinely missing
+        // by calling getFood() which marks it in missing entities
+        await entityResolver.getFood(foodName);
       // Entity resolver already tracked this as missing
       continue;
     }
@@ -1070,14 +1177,14 @@ export async function convertSchemaOrgToTandoorAsync(
             continue;
           }
 
-          // Look up food ID
+          // Use findFood() for speculative lookups (including fallback prefixes)
           let foodId: number | undefined;
-          let foodResult = await entityResolver.getFood(foodName);
+          let foodResult = await entityResolver.findFood(foodName);
           if (!foodResult && foodName.includes(' ')) {
             const foodWords = foodName.split(/\s+/);
-            for (let i = foodWords.length; i > 0; i--) {
+            for (let i = foodWords.length - 1; i > 0; i--) {
               const testName = foodWords.slice(0, i).join(' ');
-              foodResult = await entityResolver.getFood(testName);
+              foodResult = await entityResolver.findFood(testName);
               if (foodResult) {
                 break;
               }
@@ -1085,6 +1192,9 @@ export async function convertSchemaOrgToTandoorAsync(
           }
           if (foodResult) {
             foodId = foodResult.id;
+          } else {
+            // All candidates failed - record as genuinely missing
+            await entityResolver.getFood(foodName);
           }
 
           if (foodId === undefined) {
@@ -1156,10 +1266,12 @@ export async function convertSchemaOrgToTandoorAsync(
   }
 
   if (recipe.recipeCategory && typeof recipe.recipeCategory === 'string') {
-    const categoryResult = await entityResolver.getKeyword(recipe.recipeCategory.toLowerCase().trim());
+    const categoryResult = await entityResolver.findKeyword(recipe.recipeCategory.toLowerCase().trim());
     if (categoryResult) {
       keywordIds.push(categoryResult.id);
       field_transformations.push(`recipeCategory '${recipe.recipeCategory}' mapped to keyword ID ${categoryResult.id}`);
+    } else {
+      warnings.push(`recipeCategory '${recipe.recipeCategory}' not found. Use list_all_keywords() to see exact names; consider creating keyword if needed.`);
     }
   }
 
@@ -1170,10 +1282,12 @@ export async function convertSchemaOrgToTandoorAsync(
 
     for (const cuisine of cuisines) {
       if (typeof cuisine === 'string') {
-        const cuisineResult = await entityResolver.getKeyword(cuisine.toLowerCase().trim());
+        const cuisineResult = await entityResolver.findKeyword(cuisine.toLowerCase().trim());
         if (cuisineResult) {
           keywordIds.push(cuisineResult.id);
           field_transformations.push(`recipeCuisine '${cuisine}' mapped to keyword ID ${cuisineResult.id}`);
+        } else {
+          warnings.push(`recipeCuisine '${cuisine}' not found. Use list_all_keywords() to see exact names; consider creating keyword if needed.`);
         }
       }
     }
@@ -1191,15 +1305,17 @@ export async function convertSchemaOrgToTandoorAsync(
           .replace(/([A-Z])/g, ' $1')
           .trim()
           .toLowerCase();
-        
-        let dietResult = await entityResolver.getKeyword(diet.toLowerCase());
+
+        let dietResult = await entityResolver.findKeyword(diet.toLowerCase());
         if (!dietResult && dietKeyword) {
-          dietResult = await entityResolver.getKeyword(dietKeyword);
+          dietResult = await entityResolver.findKeyword(dietKeyword);
         }
-        
+
         if (dietResult) {
           keywordIds.push(dietResult.id);
           field_transformations.push(`suitableForDiet '${diet}' mapped to keyword ID ${dietResult.id}`);
+        } else {
+          warnings.push(`suitableForDiet '${diet}' not found. Consider creating keyword '${dietKeyword}' if needed.`);
         }
       }
     }
@@ -1212,5 +1328,5 @@ export async function convertSchemaOrgToTandoorAsync(
   // Get missing entities from resolver
   const missingEntities = entityResolver.getMissingEntities();
 
-  return { payload, field_transformations, missingEntities };
+  return { payload, field_transformations, missingEntities, warnings };
 }

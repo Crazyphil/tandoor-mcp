@@ -1,0 +1,36 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.Crazyphil/tandoor-mcp",
+  "description": "MCP server for Tandoor recipe importer",
+  "repository": {
+    "url": "https://github.com/Crazyphil/tandoor-mcp",
+    "source": "github"
+  },
+  "version": "1.2.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@crazyphil/tandoor-mcp",
+      "version": "1.2.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "description": "The base URL of your Tandoor instance (e.g., https://app.tandoor.dev)",
+          "isRequired": true,
+          "format": "string",
+          "isSecret": false,
+          "name": "TANDOOR_BASE_URL"
+        },
+        {
+          "description": "The Tandoor API token (found in Tandoor API settings)",
+          "isRequired": true,
+          "format": "string",
+          "isSecret": true,
+          "name": "TANDOOR_API_TOKEN"
+        }
+      ]
+    }
+  ]
+}

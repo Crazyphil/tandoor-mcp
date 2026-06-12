@@ -30,7 +30,19 @@ To install the pre-built package from GitHub Packages:
    npm install @crazyphil/tandoor-mcp
    ```
 
-### From Source
+### From Source via `npx`
+
+To install the package from the GitHub source, but automate the compilation process:
+
+```bash
+# Latest dev version from main
+npx github:crazyphil/tandoor-mcp
+
+# Or a specific release tag
+npx github:crazyphil/tandoor-mcp@v1.2.1
+```
+
+### Directly from Source
 
 If you prefer to build from source:
 
@@ -84,6 +96,22 @@ To use this server, add it to your MCP client configuration. Below are examples 
 }
 ```
 
+**When installed from source via `npx`:**
+```json
+{
+  "mcpServers": {
+    "tandoor": {
+      "command": "npx",
+      "args": ["-y", "github:crazyphil/tandoor-mcp"],
+      "env": {
+        "TANDOOR_BASE_URL": "https://app.tandoor.dev",
+        "TANDOOR_API_TOKEN": "your-api-token-here"
+      }
+    }
+  }
+}
+```
+
 **When built from source:**
 ```json
 {
@@ -120,6 +148,22 @@ Add to your Cursor settings (`~/.cursor/mcp.json`):
 }
 ```
 
+**When installed from source via `npx`:**
+```json
+{
+  "mcpServers": {
+    "tandoor": {
+      "command": "npx",
+      "args": ["-y", "github:crazyphil/tandoor-mcp"],
+      "env": {
+        "TANDOOR_BASE_URL": "https://app.tandoor.dev",
+        "TANDOOR_API_TOKEN": "your-api-token-here"
+      }
+    }
+  }
+}
+```
+
 **When built from source:**
 ```json
 {
@@ -142,6 +186,12 @@ Add to your Cursor settings (`~/.cursor/mcp.json`):
 ```bash
 # Run directly with npx (no installation required)
 npx -y @crazyphil/tandoor-mcp
+```
+
+**When installed from source via `npx`:**
+```bash
+# Run directly from GitHub source (no installation required)
+npx -y github:crazyphil/tandoor-mcp
 ```
 
 **When built from source:**

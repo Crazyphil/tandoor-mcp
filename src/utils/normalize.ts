@@ -8,8 +8,8 @@ import {
   Food,
   Unit,
   Keyword
-} from '../types';
-import { TandoorApiClient } from '../api/client';
+} from '../types.js';
+import { TandoorApiClient } from '../api/client.js';
 
 /**
  * Validates that a recipe has minimum required fields for import

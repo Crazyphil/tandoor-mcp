@@ -19,7 +19,7 @@ import {
   createKeywordInputSchema,
   searchRecipesInputSchema,
   getRecipeInputSchema
-} from '../schemas';
+} from '../schemas.js';
 
 /** Tool definition structure */
 export interface ToolDefinition {

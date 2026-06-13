@@ -4,8 +4,8 @@
  * Provides reusable mock implementations for unit testing.
  */
 
-import { TandoorApiClient } from '../api/client';
-import { RecipeImporter } from '../tools/import';
+import { TandoorApiClient } from '../api/client.js';
+import { RecipeImporter } from '../tools/import.js';
 import {
   SchemaOrgRecipe,
   ImportResult,
@@ -14,7 +14,7 @@ import {
   TandoorUnit,
   TandoorKeyword,
   TandoorRecipeResponse,
-} from '../types';
+} from '../types.js';
 
 /**
  * Create a mock TandoorApiClient with all methods as jest mocks

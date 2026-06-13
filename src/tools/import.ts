@@ -2,20 +2,20 @@ import {
   SchemaOrgRecipe,
   ImportResult,
   TandoorRecipePayload
-} from '../types';
-import { TandoorApiClient } from '../api/client';
+} from '../types.js';
+import { TandoorApiClient } from '../api/client.js';
 import {
   validateRecipePayload,
   convertSchemaOrgToTandoorAsync,
   identifyIgnoredFields,
   EntityResolver
-} from '../utils/normalize';
+} from '../utils/normalize.js';
 import {
   MISSING_ENTITIES,
   DUPLICATE_RECIPE,
   API_SCHEMA_MISMATCH,
   UNEXPECTED_ERROR
-} from '../constants';
+} from '../constants.js';
 
 export class RecipeImporter {
   constructor(private client: TandoorApiClient) {}

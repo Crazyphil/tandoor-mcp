@@ -13,17 +13,17 @@
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { TandoorApiClient } from './api/client';
-import { RecipeImporter } from './tools/import';
-import type { SchemaOrgRecipe } from './types';
-import type { ToolDefinition } from './tools/tool-definitions';
+import { TandoorApiClient } from './api/client.js';
+import { RecipeImporter } from './tools/import.js';
+import type { SchemaOrgRecipe } from './types.js';
+import type { ToolDefinition } from './tools/tool-definitions.js';
 
 // Import tool handler factories
-import { createFoodToolHandlers } from './tools/foods';
-import { createUnitToolHandlers } from './tools/units';
-import { createKeywordToolHandlers } from './tools/keywords';
-import { createRecipeToolHandlers } from './tools/recipes';
-import { tools, toolsByName } from './tools/tool-definitions';
+import { createFoodToolHandlers } from './tools/foods.js';
+import { createUnitToolHandlers } from './tools/units.js';
+import { createKeywordToolHandlers } from './tools/keywords.js';
+import { createRecipeToolHandlers } from './tools/recipes.js';
+import { tools, toolsByName } from './tools/tool-definitions.js';
 
 // Environment validation
 const baseUrl = process.env.TANDOOR_BASE_URL;

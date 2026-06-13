@@ -15,7 +15,7 @@ import {
   Ingredient,
   Step,
   PaginatedResponse
-} from '../types';
+} from '../types.js';
 
 export interface TandoorClientConfig {
   baseUrl: string;

@@ -8,9 +8,9 @@
  */
 
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
-import { TandoorApiClient } from '../api/client';
-import { handleApiError } from '../utils/errors';
-import { createJsonResponse } from '../utils/response';
+import { TandoorApiClient } from '../api/client.js';
+import { handleApiError } from '../utils/errors.js';
+import { createJsonResponse } from '../utils/response.js';
 
 /**
  * Handler function type for MCP tools

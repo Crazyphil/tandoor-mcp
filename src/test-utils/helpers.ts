@@ -5,7 +5,7 @@
  */
 
 import { McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
-import { ErrorCodeType } from '../constants';
+import { ErrorCodeType } from '../constants.js';
 
 /**
  * Extract JSON from an MCP tool response

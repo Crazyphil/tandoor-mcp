@@ -16,7 +16,7 @@ import {
   HTTP_UNAUTHORIZED,
   HTTP_FORBIDDEN,
   HTTP_NOT_FOUND
-} from '../constants';
+} from '../constants.js';
 
 /**
  * Custom error class for Tandoor MCP with structured error codes
